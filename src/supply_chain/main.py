@@ -24,7 +24,7 @@ def display_banner():
     header_text = Text()
     header_text.append("🏛️ SOVEREIGN SUPPLY CHAIN MULTI-AGENT SYSTEM\n", style="bold cyan")
     header_text.append("Autonomous Resilient Orchestration with LangGraph & LangChain\n", style="dim white")
-    header_text.append("State Governance • Public Compliance • Strategic Reserves • Risk Radar", style="yellow")
+    header_text.append("Official @tool Decorators • Guardrails • StateGraph • Memory Checkpointing", style="yellow")
     console.print(Panel(header_text, box=box.ROUNDED, expand=False, border_style="cyan"))
 
 
@@ -77,7 +77,7 @@ def run_crisis_simulation(sku: str = "SKU-MED-901", starting_stock: int = 750):
         "inventory_agent": ("📦 INVENTORY OPTIMIZATION AGENT", "magenta"),
         "risk_agent": ("⚠️ RISK & DISRUPTION RADAR AGENT", "bright_red"),
         "procurement_agent": ("🤝 PROCUREMENT & SOURCING AGENT", "yellow"),
-        "compliance_agent": ("🏛️ SOVEREIGN COMPLIANCE & STATE AGENT", "green"),
+        "compliance_guardrail": ("🛡️ SOVEREIGN GUARDRAIL & COMPLIANCE", "green"),
         "logistics_agent": ("🚚 LOGISTICS & FLEET AGENT", "cyan"),
         "orchestrator_agent": ("👑 MASTER ORCHESTRATOR (CONTROL TOWER)", "bold white on dark_blue"),
     }
@@ -89,9 +89,9 @@ def run_crisis_simulation(sku: str = "SKU-MED-901", starting_stock: int = 750):
         for node_name, node_output in event.items():
             title, color = agent_style_map.get(node_name, (node_name.upper(), "white"))
             
-            # Extract latest message from the node
+            # Extract latest BaseMessage from the node
             node_messages = node_output.get("messages", [])
-            latest_msg = node_messages[-1]["content"] if node_messages else "Step finished."
+            latest_msg = node_messages[-1].content if node_messages else "Step finished."
 
             panel = Panel(
                 Text(latest_msg, style="white"),

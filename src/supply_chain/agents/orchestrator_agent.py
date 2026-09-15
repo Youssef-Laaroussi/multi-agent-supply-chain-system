@@ -3,10 +3,12 @@ Master Orchestrator Agent Node (Supply Chain Control Tower).
 
 Synthesizes recommendations across all specialist agents, balances trade-offs,
 and issues the binding Executive Supply Order.
+Adheres to official LangChain & LangGraph standards with BaseMessage history.
 """
 
 from datetime import datetime
 from typing import Any, Dict
+from langchain_core.messages import AIMessage
 from src.supply_chain.state import SupplyChainState
 
 
@@ -18,15 +20,12 @@ def orchestrator_control_tower_node(state: SupplyChainState) -> Dict[str, Any]:
         state (SupplyChainState): Complete accumulated state across all nodes.
 
     Returns:
-        Dict[str, Any]: State update with orchestrator_decision and completion flags.
+        Dict[str, Any]: State update with orchestrator_decision, is_completed, and AIMessage.
     """
     sku = state.get("sku", "SKU-MED-901")
-    demand = state.get("demand_forecast", {})
-    inventory = state.get("inventory_analysis", {})
     procurement = state.get("selected_procurement") or {}
     compliance = state.get("compliance_review", {})
     logistics = state.get("logistics_plan", {})
-    risk = state.get("risk_assessment", {})
 
     material_cost = procurement.get("total_material_cost_eur", 0.0)
     freight_cost = logistics.get("total_freight_cost_eur", 0.0)
@@ -68,21 +67,17 @@ def orchestrator_control_tower_node(state: SupplyChainState) -> Dict[str, Any]:
         f"Trade-off: {decision_summary['trade_off_resolution']}"
     )
 
+    ai_message = AIMessage(content=reasoning, name="Master_Orchestrator_Agent")
     log_entry = (
         f"[{datetime.now().strftime('%H:%M:%S')}] 👑 ORCHESTRATOR: "
         f"Verdict: {decision_summary['verdict']} | Order: {decision_summary['executive_order_id']} | "
         f"Total: {total_investment_eur:,.2f} EUR | ETA: {total_cycle_time_days}d."
     )
 
-    message = {
-        "sender": "Master_Orchestrator_Agent",
-        "content": reasoning,
-    }
-
     return {
         "orchestrator_decision": decision_summary,
         "is_completed": True,
         "current_step": "ORCHESTRATION_FINALIZED",
         "agent_logs": [log_entry],
-        "messages": [message],
+        "messages": [ai_message],
     }
