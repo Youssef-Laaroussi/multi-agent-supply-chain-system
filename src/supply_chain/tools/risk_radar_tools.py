@@ -1,24 +1,21 @@
 """
-Risk Radar and Disruption Monitoring Tools.
+Official LangChain Tools for Risk Radar & External Disruption Detection.
 
-Simulates external intelligence feeds: weather corridors, labor strikes,
-and geopolitical alerts affecting logistics routes and supply nodes.
+Uses `@tool` decorator with explicit Pydantic `args_schema` for LLM tool binding.
 """
 
-from typing import Dict, List
+from pydantic import BaseModel, Field
+from langchain_core.tools import tool
 
 
-def query_risk_radar(sku: str) -> Dict:
-    """
-    Scans risk intelligence channels for events impacting suppliers and transit corridors.
+class RiskRadarInput(BaseModel):
+    """Input schema for risk radar tool."""
+    sku: str = Field(description="The strategic SKU identifier to scan external risk intelligence for")
 
-    Args:
-        sku (str): Strategic item identifier.
 
-    Returns:
-        Dict detailing active alerts, affected suppliers, transit delays, and severity index.
-    """
-    # Simulated active disruption scenario
+@tool(args_schema=RiskRadarInput)
+def query_risk_radar_tool(sku: str) -> dict:
+    """Scan real-time intelligence for weather storms, transport blockages, and geopolitical sanctions."""
     active_disruptions = [
         {
             "event_id": "EVT-STORM-2026",
@@ -43,6 +40,7 @@ def query_risk_radar(sku: str) -> Dict:
     max_severity = max(d["severity_score"] for d in active_disruptions)
 
     return {
+        "sku": sku,
         "status": "DISRUPTIONS_DETECTED",
         "active_alerts_count": len(active_disruptions),
         "overall_risk_index": max_severity,

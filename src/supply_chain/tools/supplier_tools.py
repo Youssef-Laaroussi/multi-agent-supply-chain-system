@@ -1,28 +1,30 @@
 """
-Procurement and Supplier Evaluation Tools.
+Official LangChain Tools for Procurement & Supplier Proposal Evaluation.
 
-Queries approved vendor catalogs, factors in dynamic risk delays,
-computes total landed item costs, and formats supplier bids.
+Uses `@tool` decorator with explicit Pydantic `args_schema` for LLM tool binding.
 """
 
-from typing import Dict, List, Optional
+from typing import List, Optional, Dict, Any
+from pydantic import BaseModel, Field
+from langchain_core.tools import tool
 from src.supply_chain.config import SUPPLIER_CATALOG
 
 
-def evaluate_supplier_proposals(
+class SupplierEvaluationInput(BaseModel):
+    """Input schema for supplier proposal evaluation tool."""
+    quantity_needed: int = Field(description="Replenishment quantity requested by inventory planners")
+    disruptions: Optional[List[Dict[str, Any]]] = Field(
+        default=None,
+        description="Active disruption alerts impacting supplier lead times"
+    )
+
+
+@tool(args_schema=SupplierEvaluationInput)
+def evaluate_supplier_proposals_tool(
     quantity_needed: int,
-    disruptions: Optional[List[Dict]] = None,
-) -> List[Dict]:
-    """
-    Evaluates available suppliers from catalog and calculates adjusted lead times and costs.
-
-    Args:
-        quantity_needed (int): Required units for replenishment.
-        disruptions (Optional[List[Dict]]): Active disruption events affecting suppliers.
-
-    Returns:
-        List[Dict]: Comprehensive list of vendor quotes with adjusted lead times.
-    """
+    disruptions: Optional[List[Dict[str, Any]]] = None,
+) -> List[dict]:
+    """Retrieve vendor proposals from catalog, apply risk-induced delays, and rank quotation options."""
     disruption_delay_map = {}
     if disruptions:
         for alert in disruptions:

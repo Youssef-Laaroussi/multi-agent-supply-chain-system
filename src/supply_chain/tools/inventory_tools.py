@@ -1,47 +1,46 @@
 """
-Inventory Optimization Tools.
+Official LangChain Tools for Inventory Optimization.
 
-Provides deterministic calculations for Safety Stock, Reorder Point (ROP),
-stockout timelines, and breach checks against State Strategic Reserve Floors.
+Uses `@tool` decorator with explicit Pydantic `args_schema` for LLM tool binding.
 """
 
 import math
-from typing import Dict
+from pydantic import BaseModel, Field
+from langchain_core.tools import tool
+from src.supply_chain.config import SystemConfig
 
 
-def calculate_inventory_metrics(
+class InventoryMetricsInput(BaseModel):
+    """Input schema for inventory calculation tool."""
+    current_stock: int = Field(description="Current physical units available in warehouse")
+    daily_demand: float = Field(description="Projected average daily units consumed")
+    lead_time_days: int = Field(default=3, description="Expected replenishment lead time in days")
+    demand_std_dev: float = Field(default=15.0, description="Standard deviation of daily consumption")
+    service_factor_z: float = Field(default=1.96, description="Z-score for target service level (1.96 = 97.5%)")
+    strategic_reserve_floor: int = Field(
+        default=SystemConfig.CRITICAL_STRATEGIC_RESERVE_FLOOR,
+        description="Statutory non-negotiable state strategic reserve floor"
+    )
+
+
+@tool(args_schema=InventoryMetricsInput)
+def calculate_inventory_metrics_tool(
     current_stock: int,
     daily_demand: float,
     lead_time_days: int = 3,
     demand_std_dev: float = 15.0,
-    service_factor_z: float = 1.96,  # 97.5% Service Level
-    strategic_reserve_floor: int = 500,
-) -> Dict:
-    """
-    Evaluates inventory health against standard replenishment metrics and sovereign floors.
-
-    Args:
-        current_stock (int): Physical units on hand.
-        daily_demand (float): Projected units consumed per day.
-        lead_time_days (int): Expected supplier replenishment time.
-        demand_std_dev (float): Standard deviation of daily demand.
-        service_factor_z (float): Z-score for target service level.
-        strategic_reserve_floor (int): Minimum untouchable state stock.
-
-    Returns:
-        Dict of metrics including safety stock, ROP, days of supply, and breach flags.
-    """
+    service_factor_z: float = 1.96,
+    strategic_reserve_floor: int = SystemConfig.CRITICAL_STRATEGIC_RESERVE_FLOOR,
+) -> dict:
+    """Calculate Reorder Point (ROP), Safety Stock (SS), and audit against the State Strategic Reserve Floor."""
     safety_stock = int(service_factor_z * demand_std_dev * math.sqrt(lead_time_days))
     lead_time_demand = daily_demand * lead_time_days
     reorder_point = int(lead_time_demand + safety_stock)
-
     days_of_supply = round(current_stock / daily_demand, 1) if daily_demand > 0 else 999.0
 
-    # Project stock after lead time consumption
     projected_post_lead_stock = int(current_stock - lead_time_demand)
     strategic_breach = projected_post_lead_stock < strategic_reserve_floor
 
-    # Recommended replenishment quantity (target: restore buffer + 7 days operating cycle)
     recommended_reorder = max(
         0,
         int((strategic_reserve_floor + (daily_demand * 7) + safety_stock) - current_stock),

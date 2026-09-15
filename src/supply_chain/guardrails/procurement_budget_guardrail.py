@@ -36,6 +36,7 @@ def validate_procurement_budget_guardrail(
         if is_emergency_declared
         else budget_ceiling_eur
     )
+    total_expenditure = material_cost_eur + freight_cost_eur
 
     audit = {
         "material_cost_eur": material_cost_eur,

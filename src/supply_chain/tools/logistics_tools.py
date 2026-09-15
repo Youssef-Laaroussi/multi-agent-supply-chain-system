@@ -1,30 +1,34 @@
 """
-Logistics and Freight Routing Tools.
+Official LangChain Tools for Logistics & Fleet Freight Planning.
 
-Selects carriers, determines transit schedules, calculates transportation costs,
-and verifies security accreditations for strategic cargo.
+Uses `@tool` decorator with explicit Pydantic `args_schema` for LLM tool binding.
 """
 
-from typing import Dict, List, Optional
+from pydantic import BaseModel, Field
+from langchain_core.tools import tool
 from src.supply_chain.config import CARRIER_CATALOG
 
 
-def plan_freight_dispatch(
+class FreightDispatchInput(BaseModel):
+    """Input schema for freight dispatch planning tool."""
+    quantity_units: int = Field(description="Total number of units to be loaded and dispatched")
+    urgency_level: str = Field(
+        default="HIGH",
+        description="Urgency tier: 'CRITICAL', 'HIGH', or 'STANDARD'"
+    )
+    require_security_escort: bool = Field(
+        default=True,
+        description="Mandatory state security escort certification for strategic goods"
+    )
+
+
+@tool(args_schema=FreightDispatchInput)
+def plan_freight_dispatch_tool(
     quantity_units: int,
     urgency_level: str = "HIGH",
     require_security_escort: bool = True,
-) -> Dict:
-    """
-    Allocates carrier and builds shipment plan based on urgency and security requirements.
-
-    Args:
-        quantity_units (int): Number of units to transport.
-        urgency_level (str): "CRITICAL", "HIGH", or "STANDARD".
-        require_security_escort (bool): Whether sovereign strategic security is mandatory.
-
-    Returns:
-        Dict: Full freight allocation plan including carrier, cost, and ETA.
-    """
+) -> dict:
+    """Select security-certified carrier fleet, calculate freight costs, and establish dock ETA."""
     selected_carrier = None
     for carrier in CARRIER_CATALOG:
         if require_security_escort and not carrier["certified_security"]:
