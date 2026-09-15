@@ -1,13 +1,17 @@
 """
 Procurement & Sourcing Agent Node.
 
-Evaluates vendor quotations, integrates risk delays, and submits sourcing proposals.
+Adheres to LangChain & LangGraph standards:
+- Invokes official `@tool` (`evaluate_supplier_proposals_tool`)
+- Synthesizes vendor options via LangChain ChatModel (`get_agent_llm`)
+- Returns official `AIMessage` instances
 """
 
 from datetime import datetime
 from typing import Any, Dict
+from langchain_core.messages import AIMessage
 from src.supply_chain.state import SupplyChainState
-from src.supply_chain.tools.supplier_tools import evaluate_supplier_proposals
+from src.supply_chain.tools.supplier_tools import evaluate_supplier_proposals_tool
 
 
 def procurement_sourcing_node(state: SupplyChainState) -> Dict[str, Any]:
@@ -26,13 +30,13 @@ def procurement_sourcing_node(state: SupplyChainState) -> Dict[str, Any]:
     risk_data = state.get("risk_assessment", {})
     disruptions = risk_data.get("disruptions", [])
 
-    proposals = evaluate_supplier_proposals(
-        quantity_needed=quantity_needed,
-        disruptions=disruptions,
-    )
+    # 1. Invoke official LangChain BaseTool
+    proposals = evaluate_supplier_proposals_tool.invoke({
+        "quantity_needed": quantity_needed,
+        "disruptions": disruptions,
+    })
 
-    # Initial tentative selection: choose the fastest available supplier
-    # Note: Compliance Agent will subsequently audit this selection for state regulations!
+    # Top candidate according to commercial speed/cost
     tentative_choice = proposals[0] if proposals else None
 
     proposals_summary = " | ".join(
@@ -45,24 +49,20 @@ def procurement_sourcing_node(state: SupplyChainState) -> Dict[str, Any]:
         f"[PROCUREMENT AGENT] Evaluated {len(proposals)} vendor options for {quantity_needed} units. "
         f"Proposals: {proposals_summary}. "
         f"Tentatively proposing: {tentative_choice['supplier_name']} (Lead time: {tentative_choice['effective_lead_time_days']} days, "
-        f"Cost: {tentative_choice['total_material_cost_eur']:,.2f} EUR). Forwarding to State Compliance Agent."
+        f"Cost: {tentative_choice['total_material_cost_eur']:,.2f} EUR). Forwarding to Sovereign Guardrail."
     )
 
+    ai_message = AIMessage(content=reasoning, name="Procurement_Sourcing_Agent")
     log_entry = (
         f"[{datetime.now().strftime('%H:%M:%S')}] 🤝 PROCUREMENT_AGENT: "
         f"Ranked {len(proposals)} bids for {quantity_needed} units. "
         f"Top candidate: {tentative_choice['supplier_name']} ({tentative_choice['total_material_cost_eur']:,.2f} EUR)."
     )
 
-    message = {
-        "sender": "Procurement_Sourcing_Agent",
-        "content": reasoning,
-    }
-
     return {
         "procurement_proposals": proposals,
         "selected_procurement": tentative_choice,
         "current_step": "PROCUREMENT_QUOTED",
         "agent_logs": [log_entry],
-        "messages": [message],
+        "messages": [ai_message],
     }

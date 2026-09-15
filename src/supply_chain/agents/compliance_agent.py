@@ -3,10 +3,12 @@ Sovereign Compliance & State Policy Agent Node.
 
 Represents public authority and legal governance. Enforces trade embargos,
 statutory strategic reserve floors, and public procurement oversight with veto authority.
+Adheres to official LangChain & LangGraph BaseMessage communication.
 """
 
 from datetime import datetime
 from typing import Any, Dict
+from langchain_core.messages import AIMessage
 from src.supply_chain.state import SupplyChainState
 from src.supply_chain.guardrails import (
     validate_embargo_sanctions_guardrail,
@@ -24,7 +26,7 @@ def compliance_governance_node(state: SupplyChainState) -> Dict[str, Any]:
         state (SupplyChainState): Current workflow state with tentative procurement selection.
 
     Returns:
-        Dict[str, Any]: State update with compliance review, approved vendor, and guardrail verdicts.
+        Dict[str, Any]: State update with compliance review, approved vendor, and AIMessage.
     """
     tentative = state.get("selected_procurement") or {}
     proposals = state.get("procurement_proposals", [])
@@ -37,7 +39,7 @@ def compliance_governance_node(state: SupplyChainState) -> Dict[str, Any]:
     veto_issued = False
 
     # 1. Audit tentative vendor against Embargo & Sovereign Origin
-    embargo_passed, embargo_msg, embargo_audit = validate_embargo_sanctions_guardrail(
+    embargo_passed, embargo_msg, _ = validate_embargo_sanctions_guardrail(
         supplier_country=tentative.get("country", "UNKNOWN"),
         certified_by_state=tentative.get("certified_by_state", False),
     )
@@ -50,7 +52,6 @@ def compliance_governance_node(state: SupplyChainState) -> Dict[str, Any]:
             f"Scanning alternative certified sovereign suppliers..."
         )
 
-        # Re-scan proposals for a 100% compliant sovereign supplier
         for candidate in proposals:
             c_passed, _, _ = validate_embargo_sanctions_guardrail(
                 supplier_country=candidate.get("country", ""),
@@ -69,9 +70,9 @@ def compliance_governance_node(state: SupplyChainState) -> Dict[str, Any]:
     if approved_vendor:
         # 2. Audit Budget Guardrail
         material_cost = approved_vendor.get("total_material_cost_eur", 0.0)
-        estimated_freight = approved_vendor.get("quantity_quoted", 0) * 15.0  # Air express estimate
+        estimated_freight = approved_vendor.get("quantity_quoted", 0) * 15.0
 
-        budget_passed, budget_msg, budget_audit = validate_procurement_budget_guardrail(
+        budget_passed, budget_msg, _ = validate_procurement_budget_guardrail(
             material_cost_eur=material_cost,
             freight_cost_eur=estimated_freight,
             is_emergency_declared=inventory_data.get("strategic_reserve_breach", False),
@@ -79,7 +80,7 @@ def compliance_governance_node(state: SupplyChainState) -> Dict[str, Any]:
         audit_log.append(budget_msg)
 
         # 3. Audit Strategic Reserve Protection
-        reserve_passed, reserve_msg, reserve_audit = validate_strategic_reserve_guardrail(
+        reserve_passed, reserve_msg, _ = validate_strategic_reserve_guardrail(
             current_stock=state.get("current_inventory", 750),
             projected_outflow=inventory_data.get("lead_time_demand", 720),
             replenishment_incoming=approved_vendor.get("quantity_quoted", 0),
@@ -105,16 +106,12 @@ def compliance_governance_node(state: SupplyChainState) -> Dict[str, Any]:
         f"Audit findings: {' | '.join(audit_log)}"
     )
 
+    ai_message = AIMessage(content=reasoning, name="Sovereign_Compliance_Agent")
     log_entry = (
         f"[{datetime.now().strftime('%H:%M:%S')}] 🏛️ COMPLIANCE_AGENT: "
         f"Status: {compliance_summary['status']} | Veto: {veto_issued} | "
         f"Authorized: {approved_vendor.get('supplier_name') if approved_vendor else 'NONE'}."
     )
-
-    message = {
-        "sender": "Sovereign_Compliance_Agent",
-        "content": reasoning,
-    }
 
     return {
         "selected_procurement": approved_vendor,
@@ -122,5 +119,5 @@ def compliance_governance_node(state: SupplyChainState) -> Dict[str, Any]:
         "is_compliant": is_compliant,
         "current_step": "COMPLIANCE_REVIEW_COMPLETED",
         "agent_logs": [log_entry],
-        "messages": [message],
+        "messages": [ai_message],
     }
