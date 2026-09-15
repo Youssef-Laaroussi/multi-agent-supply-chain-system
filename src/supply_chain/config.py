@@ -18,6 +18,7 @@ class SystemConfig:
 
     # Public Procurement Spending Caps (in EUR)
     MAX_EXPRESS_PURCHASE_BUDGET_EUR: float = 100_000.0
+    EMERGENCY_BUDGET_CEILING_EUR: float = 250_000.0
     SOLE_SOURCE_JUSTIFICATION_THRESHOLD_EUR: float = 25_000.0
 
     # Sanctioned Countries / Non-Certified Jurisdictions (Sovereignty Rule)
