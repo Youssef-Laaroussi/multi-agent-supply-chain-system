@@ -1,8 +1,10 @@
 """
 Interactive CLI Runner for the Sovereign Supply Chain Multi-Agent System.
 
-Streams LangGraph execution events, renders structured agent panels via Rich,
-and demonstrates stateful memory persistence across threads.
+Demonstrates:
+- Official LangGraph StateGraph execution with `.invoke()` and `.stream()`
+- Official LangGraph Checkpointer (`MemorySaver`) with thread state inspection (`app.get_state(config)`)
+- Official LangGraph conditional edge routing based on sovereign guardrails
 """
 
 import sys
@@ -24,7 +26,7 @@ def display_banner():
     header_text = Text()
     header_text.append("🏛️ SOVEREIGN SUPPLY CHAIN MULTI-AGENT SYSTEM\n", style="bold cyan")
     header_text.append("Autonomous Resilient Orchestration with LangGraph & LangChain\n", style="dim white")
-    header_text.append("Official @tool Decorators • Guardrails • StateGraph • Memory Checkpointing", style="yellow")
+    header_text.append("LangGraph Checkpointer (Memory) • @tool Decorators • StateGraph Routing", style="yellow")
     console.print(Panel(header_text, box=box.ROUNDED, expand=False, border_style="cyan"))
 
 
@@ -43,10 +45,10 @@ def run_crisis_simulation(sku: str = "SKU-MED-901", starting_stock: int = 750):
     console.print(f"• Starting Warehouse Stock: [white]{starting_stock} units[/white]")
     console.print(f"• Statutory Strategic Reserve Floor: [bold red]{SystemConfig.CRITICAL_STRATEGIC_RESERVE_FLOOR} units[/bold red] (Untouchable)\n")
 
-    # 1. Build workflow with memory checkpointer
+    # 1. Build workflow with official LangGraph MemorySaver checkpointer
     app = build_supply_chain_graph(use_checkpointer=True)
 
-    # 2. Setup initial state and persistent memory thread
+    # 2. Setup persistent memory thread config
     thread_id = f"crisis-thread-{datetime.now().strftime('%Y%m%d-%H%M')}"
     config = {"configurable": {"thread_id": thread_id}}
 
@@ -103,7 +105,15 @@ def run_crisis_simulation(sku: str = "SKU-MED-901", starting_stock: int = 750):
             console.print(panel)
             final_state.update(node_output)
 
-    # Render Executive Final Dashboard
+    # 3. Demonstrate Official LangGraph Memory Inspection (app.get_state)
+    console.print("\n[bold cyan]🔍 CHECKPOINTER MEMORY STATE INSPECTION (`app.get_state(config)`):[/bold cyan]")
+    checkpoint_state = app.get_state(config)
+    console.print(f"• Checkpointer Thread ID: [bold white]{config['configurable']['thread_id']}[/bold white]")
+    console.print(f"• Persistent Messages in State: [bold green]{len(checkpoint_state.values.get('messages', []))} messages stored[/bold green]")
+    console.print(f"• Final Checkpoint Step: [bold yellow]{checkpoint_state.values.get('current_step')}[/bold yellow]")
+    console.print(f"• Next Scheduled Node: [bold magenta]{checkpoint_state.next or 'None (Execution Completed)'}[/bold magenta]")
+
+    # 4. Render Executive Final Dashboard
     decision = final_state.get("orchestrator_decision", {})
     if decision:
         console.print("\n")

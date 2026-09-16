@@ -1,15 +1,12 @@
-# LangChain & LangGraph Framework
-langgraph>=0.2.0
-langchain>=0.2.0
-langchain-core>=0.2.0
-langchain-community>=0.2.0
-langchain-openai>=0.1.0
+langgraph>=1.0.0
+langchain>=1.0.0
+langchain-core>=1.0.0
+langchain-community>=0.3.0
+langchain-openai>=0.2.0
 
-# Data Validation & Utilities
+# Supporting utilities
 pydantic>=2.7.0
 python-dotenv>=1.0.0
 rich>=13.7.0
-
-# Testing & Quality
 pytest>=8.0.0
 pytest-asyncio>=0.23.0

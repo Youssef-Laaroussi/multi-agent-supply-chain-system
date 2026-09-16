@@ -1,28 +1,24 @@
 """
 Procurement & Sourcing Agent Node.
 
-Adheres to LangChain & LangGraph standards:
-- Invokes official `@tool` (`evaluate_supplier_proposals_tool`)
-- Synthesizes vendor options via LangChain ChatModel (`get_agent_llm`)
-- Returns official `AIMessage` instances
+Official LangChain & LangGraph implementation:
+- Uses `llm.bind_tools([evaluate_supplier_proposals_tool])`
+- Invokes model with state messages
+- Evaluates supplier bids and emits AIMessage with tool calls
 """
 
 from datetime import datetime
 from typing import Any, Dict
-from langchain_core.messages import AIMessage
+from langchain_core.messages import AIMessage, SystemMessage
 from src.supply_chain.state import SupplyChainState
 from src.supply_chain.tools.supplier_tools import evaluate_supplier_proposals_tool
+from src.supply_chain.prompts import PROCUREMENT_AGENT_PROMPT
+from src.supply_chain.llm import get_agent_llm
 
 
 def procurement_sourcing_node(state: SupplyChainState) -> Dict[str, Any]:
     """
-    LangGraph node: Solicits bids and ranks supplier proposals.
-
-    Args:
-        state (SupplyChainState): Current workflow state containing inventory need and risk data.
-
-    Returns:
-        Dict[str, Any]: Partial state update with procurement_proposals and selected_procurement.
+    LangGraph agent node: Evaluates supplier proposals and ranks bids.
     """
     inventory_data = state.get("inventory_analysis", {})
     quantity_needed = inventory_data.get("recommended_reorder_qty", 1000)
@@ -30,13 +26,17 @@ def procurement_sourcing_node(state: SupplyChainState) -> Dict[str, Any]:
     risk_data = state.get("risk_assessment", {})
     disruptions = risk_data.get("disruptions", [])
 
-    # 1. Invoke official LangChain BaseTool
+    # 1. Official tool binding and model invocation
+    model = get_agent_llm(temperature=0.0).bind_tools([evaluate_supplier_proposals_tool])
+    system_msg = SystemMessage(content=PROCUREMENT_AGENT_PROMPT)
+    ai_response = model.invoke([system_msg] + state.get("messages", []))
+
+    # 2. Execute tool invocation
     proposals = evaluate_supplier_proposals_tool.invoke({
         "quantity_needed": quantity_needed,
         "disruptions": disruptions,
     })
 
-    # Top candidate according to commercial speed/cost
     tentative_choice = proposals[0] if proposals else None
 
     proposals_summary = " | ".join(
@@ -52,7 +52,11 @@ def procurement_sourcing_node(state: SupplyChainState) -> Dict[str, Any]:
         f"Cost: {tentative_choice['total_material_cost_eur']:,.2f} EUR). Forwarding to Sovereign Guardrail."
     )
 
-    ai_message = AIMessage(content=reasoning, name="Procurement_Sourcing_Agent")
+    ai_msg = AIMessage(
+        content=reasoning,
+        name="Procurement_Sourcing_Agent",
+        tool_calls=ai_response.tool_calls,
+    )
     log_entry = (
         f"[{datetime.now().strftime('%H:%M:%S')}] 🤝 PROCUREMENT_AGENT: "
         f"Ranked {len(proposals)} bids for {quantity_needed} units. "
@@ -64,5 +68,5 @@ def procurement_sourcing_node(state: SupplyChainState) -> Dict[str, Any]:
         "selected_procurement": tentative_choice,
         "current_step": "PROCUREMENT_QUOTED",
         "agent_logs": [log_entry],
-        "messages": [ai_message],
+        "messages": [ai_msg],
     }

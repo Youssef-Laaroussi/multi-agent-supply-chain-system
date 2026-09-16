@@ -1,28 +1,24 @@
 """
 Logistics & Fleet Orchestration Agent Node.
 
-Adheres to LangChain & LangGraph standards:
-- Invokes official `@tool` (`plan_freight_dispatch_tool`)
-- Synthesizes freight allocation via LangChain ChatModel (`get_agent_llm`)
-- Returns official `AIMessage` instances
+Official LangChain & LangGraph implementation:
+- Uses `llm.bind_tools([plan_freight_dispatch_tool])`
+- Invokes model with state messages
+- Allocates certified carrier fleet and emits AIMessage with tool calls
 """
 
 from datetime import datetime
 from typing import Any, Dict
-from langchain_core.messages import AIMessage
+from langchain_core.messages import AIMessage, SystemMessage
 from src.supply_chain.state import SupplyChainState
 from src.supply_chain.tools.logistics_tools import plan_freight_dispatch_tool
+from src.supply_chain.prompts import LOGISTICS_AGENT_PROMPT
+from src.supply_chain.llm import get_agent_llm
 
 
 def logistics_orchestration_node(state: SupplyChainState) -> Dict[str, Any]:
     """
-    LangGraph node: Formulates the transportation and dispatch plan.
-
-    Args:
-        state (SupplyChainState): Current workflow state with approved procurement.
-
-    Returns:
-        Dict[str, Any]: Partial state update with logistics_plan and AIMessage.
+    LangGraph agent node: Dispatches freight and establishes transport schedule.
     """
     selected_procurement = state.get("selected_procurement") or {}
     quantity = selected_procurement.get("quantity_quoted", 1000)
@@ -31,7 +27,12 @@ def logistics_orchestration_node(state: SupplyChainState) -> Dict[str, Any]:
     is_urgent = inventory_data.get("strategic_reserve_breach", True)
     urgency = "CRITICAL" if is_urgent else "STANDARD"
 
-    # 1. Invoke official LangChain BaseTool
+    # 1. Official tool binding and model invocation
+    model = get_agent_llm(temperature=0.0).bind_tools([plan_freight_dispatch_tool])
+    system_msg = SystemMessage(content=LOGISTICS_AGENT_PROMPT)
+    ai_response = model.invoke([system_msg] + state.get("messages", []))
+
+    # 2. Execute tool invocation
     dispatch_plan = plan_freight_dispatch_tool.invoke({
         "quantity_units": quantity,
         "urgency_level": urgency,
@@ -46,7 +47,11 @@ def logistics_orchestration_node(state: SupplyChainState) -> Dict[str, Any]:
         f"Sovereign security escort: Confirmed."
     )
 
-    ai_message = AIMessage(content=reasoning, name="Logistics_Fleet_Agent")
+    ai_msg = AIMessage(
+        content=reasoning,
+        name="Logistics_Fleet_Agent",
+        tool_calls=ai_response.tool_calls,
+    )
     log_entry = (
         f"[{datetime.now().strftime('%H:%M:%S')}] 🚚 LOGISTICS_AGENT: "
         f"Carrier: {dispatch_plan['carrier_name']} | Transit: {dispatch_plan['transit_days']}d | "
@@ -57,5 +62,5 @@ def logistics_orchestration_node(state: SupplyChainState) -> Dict[str, Any]:
         "logistics_plan": dispatch_plan,
         "current_step": "LOGISTICS_PLANNED",
         "agent_logs": [log_entry],
-        "messages": [ai_message],
+        "messages": [ai_msg],
     }

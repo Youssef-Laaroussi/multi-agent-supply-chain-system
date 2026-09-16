@@ -1,10 +1,10 @@
 """
 Inventory Optimization Agent Node.
 
-Adheres to LangChain & LangGraph standards:
-- Invokes official `@tool` (`calculate_inventory_metrics_tool`)
-- Synthesizes metrics via LangChain ChatModel (`get_agent_llm`)
-- Returns official `AIMessage` instances
+Official LangChain & LangGraph implementation:
+- Uses `llm.bind_tools([calculate_inventory_metrics_tool])`
+- Invokes model with state messages
+- Returns AIMessage with structured reasoning and tool calls
 """
 
 from datetime import datetime
@@ -19,20 +19,19 @@ from src.supply_chain.llm import get_agent_llm
 
 def inventory_optimization_node(state: SupplyChainState) -> Dict[str, Any]:
     """
-    LangGraph node: Evaluates stock balance and determines reorder requirements.
-
-    Args:
-        state (SupplyChainState): Current workflow state containing demand forecast.
-
-    Returns:
-        Dict[str, Any]: Partial state update with inventory_analysis and AIMessage.
+    LangGraph agent node: Evaluates warehouse inventory and strategic floors.
     """
     current_stock = state.get("current_inventory", 750)
     reserve_floor = state.get("strategic_reserve_floor", SystemConfig.CRITICAL_STRATEGIC_RESERVE_FLOOR)
     demand_data = state.get("demand_forecast", {})
     daily_demand = demand_data.get("adjusted_daily_forecast", 247.5)
 
-    # 1. Invoke official LangChain BaseTool
+    # 1. Official tool binding and model invocation
+    model = get_agent_llm(temperature=0.0).bind_tools([calculate_inventory_metrics_tool])
+    system_msg = SystemMessage(content=INVENTORY_AGENT_PROMPT)
+    ai_response = model.invoke([system_msg] + state.get("messages", []))
+
+    # 2. Execute tool invocation
     inventory_metrics = calculate_inventory_metrics_tool.invoke({
         "current_stock": current_stock,
         "daily_demand": daily_demand,
@@ -57,7 +56,11 @@ def inventory_optimization_node(state: SupplyChainState) -> Dict[str, Any]:
         f"Recommended emergency replenishment quantity: {inventory_metrics['recommended_reorder_qty']} units."
     )
 
-    ai_message = AIMessage(content=reasoning, name="Inventory_Optimization_Agent")
+    ai_msg = AIMessage(
+        content=reasoning,
+        name="Inventory_Optimization_Agent",
+        tool_calls=ai_response.tool_calls,
+    )
     log_entry = (
         f"[{datetime.now().strftime('%H:%M:%S')}] 📦 INVENTORY_AGENT: "
         f"Stock: {current_stock}u | Days supply: {inventory_metrics['days_of_supply']}d | "
@@ -69,5 +72,5 @@ def inventory_optimization_node(state: SupplyChainState) -> Dict[str, Any]:
         "inventory_analysis": inventory_metrics,
         "current_step": "INVENTORY_ANALYSIS_COMPLETED",
         "agent_logs": [log_entry],
-        "messages": [ai_message],
+        "messages": [ai_msg],
     }
