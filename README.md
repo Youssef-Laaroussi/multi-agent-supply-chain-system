@@ -12,22 +12,22 @@ Engineered strictly following the official documentation of **LangGraph** (`Stat
 
 ---
 
-## 🏛️ System Architecture
+## System Architecture
 
 The system models decision-making through **7 specialized agent nodes**, an explicit **Sovereign Guardrail validation node**, and **conditional routing edges**:
 
 ```mermaid
 flowchart TD
-    START([START]) --> DA[📈 Demand Forecasting Agent]
-    DA --> IA[📦 Inventory Optimization Agent]
-    IA --> RA[⚠️ Risk & Disruption Radar Agent]
-    RA --> PA[🤝 Procurement & Sourcing Agent]
-    PA --> GV{🛡️ Sovereign Guardrail Validator}
+    START([START]) --> DA[Demand Forecasting Agent]
+    DA --> IA[Inventory Optimization Agent]
+    IA --> RA[Risk & Disruption Radar Agent]
+    RA --> PA[Procurement & Sourcing Agent]
+    PA --> GV{Sovereign Guardrail Validator}
     
-    GV -- Passed / Certified --> LA[🚚 Logistics & Fleet Agent]
-    GV -- Vetoed / Non-Compliant --> MO[👑 Master Orchestrator: Emergency Halt]
+    GV -- Passed / Certified --> LA[Logistics & Fleet Agent]
+    GV -- Vetoed / Non-Compliant --> MO[Master Orchestrator: Emergency Halt]
     
-    LA --> MO[👑 Master Orchestrator: Executive Decree]
+    LA --> MO[Master Orchestrator: Executive Decree]
     MO --> END_NODE([END])
 
     subgraph LangGraph Memory & Checkpointing
