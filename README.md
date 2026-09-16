@@ -3,7 +3,7 @@
 [![Python 3.12](https://img.shields.io/badge/python-3.12-blue.svg)](https://www.python.org/downloads/)
 [![LangGraph](https://img.shields.io/badge/LangGraph-StateGraph-orange.svg)](https://langchain-ai.github.io/langgraph/)
 [![LangChain](https://img.shields.io/badge/LangChain-Core%20%26%20Tools-green.svg)](https://python.langchain.com/)
-[![Tests](https://img.shields.io/badge/tests-10%20passed-brightgreen.svg)]()
+[![Tests](https://img.shields.io/badge/tests-14%20passed-brightgreen.svg)]()
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 An enterprise-grade, autonomous **Multi-Agent System (MAS)** for predictive, resilient supply chain management under strict **sovereign state constraints** (national strategic reserves, public procurement laws, trade embargos, and emergency decrees). 
@@ -149,21 +149,25 @@ python -m pytest -v tests/
 multi-agent-supply-chain-system/
 ├── ylenv/                               # Python Virtual Environment
 ├── .gitignore                           # Git ignore configuration
-├── .env.example                         # Environment configuration template
+├── .env.example                         # Environment configuration template (DeepSeek, OpenAI, LangSmith)
 ├── requirements.txt                     # Project dependencies
-├── README.md                            # Complete documentation
-├── docs/                                # Technical deep-dive documentation
-│   ├── ARCHITECTURE.md                  # StateGraph transitions & state flow
-│   ├── GUARDRAILS.md                    # Sovereign guardrail specifications
-│   └── TOOLS.md                         # @tool schemas and signatures
+├── README.md                            # Complete self-contained documentation
+├── reports/                             # Statutory JSON audit reports & SQLite checkpoints
 ├── tests/
-│   └── test_supply_chain.py             # Pytest automated test suite (10/10 passing)
+│   └── test_supply_chain.py             # Pytest automated test suite (14/14 passing)
 └── src/
     └── supply_chain/
         ├── __init__.py
         ├── config.py                    # Strategic reserve floors, catalogs, thresholds
         ├── state.py                     # Official LangGraph TypedDict & add_messages
-        ├── llm.py                       # LangChain ChatModel factory & offline fallback
+        ├── llm.py                       # LangChain ChatModel factory (DeepSeek, OpenAI, Mock)
+        ├── reports.py                   # Statutory crisis decree & JSON audit exporter
+        ├── memory/                      # State persistence & checkpointer factory
+        │   ├── __init__.py
+        │   └── checkpointer.py          # MemorySaver & SqliteSaver backends
+        ├── schemas/                     # Strict Pydantic output validation models
+        │   ├── __init__.py
+        │   └── outputs.py               # Domain schemas for all 7 agent outputs
         ├── prompts/                     # Role-specialized system prompts
         │   └── __init__.py
         ├── guardrails/                  # Sovereign guardrails & validator node
@@ -188,7 +192,7 @@ multi-agent-supply-chain-system/
         │   ├── compliance_agent.py
         │   ├── logistics_agent.py
         │   └── orchestrator_agent.py
-        ├── graph.py                     # StateGraph compilation & MemorySaver
+        ├── graph.py                     # StateGraph compilation & checkpointer binding
         └── main.py                      # Interactive Rich CLI simulation runner
 ```
 
