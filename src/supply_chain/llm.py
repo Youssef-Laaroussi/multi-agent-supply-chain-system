@@ -91,18 +91,42 @@ class MockDeterministicChatModel(BaseChatModel):
 def get_agent_llm(temperature: float = 0.0) -> BaseChatModel:
     """
     Returns an instantiated LangChain ChatModel.
-    - If OPENAI_API_KEY is present and not 'mock', returns ChatOpenAI.
-    - Otherwise returns MockDeterministicChatModel with official tool-calling support.
-    """
-    api_key = os.getenv("OPENAI_API_KEY")
-    mode = os.getenv("LLM_MODE", "auto").lower()
 
-    if api_key and mode != "mock" and not api_key.startswith("your_"):
+    Provider Selection:
+    1. DeepSeek: If LLM_PROVIDER="deepseek" or DEEPSEEK_API_KEY is configured.
+       Uses official DeepSeek API via OpenAI-compatible ChatOpenAI endpoint.
+    2. OpenAI: If OPENAI_API_KEY is configured.
+    3. Mock: Deterministic offline mode (default for tests, zero cost, reproducible).
+
+    LangSmith Tracing:
+    Automatically activates when LANGCHAIN_TRACING_V2="true" and LANGCHAIN_API_KEY are set.
+    """
+    mode = os.getenv("LLM_MODE", "auto").lower().strip()
+    provider = os.getenv("LLM_PROVIDER", "auto").lower().strip()
+
+    # 1. Check DeepSeek provider
+    deepseek_key = os.getenv("DEEPSEEK_API_KEY")
+    if (provider == "deepseek" or (deepseek_key and provider == "auto")) and mode != "mock":
+        if deepseek_key and not deepseek_key.startswith("your_"):
+            model_name = os.getenv("DEEPSEEK_MODEL_NAME", "deepseek-chat")
+            base_url = os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com")
+            return ChatOpenAI(
+                model=model_name,
+                temperature=temperature,
+                api_key=deepseek_key,
+                base_url=base_url,
+            )
+
+    # 2. Check OpenAI provider
+    openai_key = os.getenv("OPENAI_API_KEY")
+    if openai_key and mode != "mock" and not openai_key.startswith("your_"):
         model_name = os.getenv("OPENAI_MODEL_NAME", "gpt-4o-mini")
         return ChatOpenAI(
             model=model_name,
             temperature=temperature,
-            api_key=api_key,
+            api_key=openai_key,
         )
 
+    # 3. Fallback: Offline deterministic mock with tool-calling support
     return MockDeterministicChatModel()
+

@@ -7,6 +7,7 @@ Validates:
 - End-to-end LangGraph StateGraph execution with BaseMessage channels
 """
 
+import os
 import pytest
 from src.supply_chain.config import SystemConfig
 from src.supply_chain.tools import (
@@ -178,3 +179,94 @@ def test_full_langgraph_execution():
     assert final_state["orchestrator_decision"]["verdict"] == "AUTHORIZED_AND_DISPATCHED"
     assert len(final_state["agent_logs"]) >= 6
     assert len(final_state["messages"]) >= 6
+
+
+# ==============================================================================
+# 4. MEMORY, SCHEMAS & AUDIT REPORT TESTS
+# ==============================================================================
+
+def test_checkpointer_factory():
+    """Verify that get_checkpointer returns valid LangGraph MemorySaver."""
+    from src.supply_chain.memory import get_checkpointer
+    from langgraph.checkpoint.memory import MemorySaver
+
+    checkpointer = get_checkpointer(backend="memory")
+    assert isinstance(checkpointer, MemorySaver)
+
+
+def test_pydantic_schemas_validation():
+    """Verify that output schemas validate domain data strictly."""
+    from src.supply_chain.schemas import DemandForecastOutput, OrchestratorDecisionOutput
+
+    demand = DemandForecastOutput(
+        sku="SKU-MED-901",
+        baseline_daily_average=100.0,
+        adjusted_daily_forecast=180.0,
+        planning_horizon_days=7,
+        total_projected_demand=1260,
+        emergency_shock_factor=0.80,
+        surge_percentage="80%",
+        anomaly_detected=True,
+    )
+    assert demand.total_projected_demand == 1260
+    assert demand.anomaly_detected is True
+
+    decision = OrchestratorDecisionOutput(
+        executive_order_id="EX-DECREE-001",
+        sku="SKU-MED-901",
+        sku_description="Ventilator Filters",
+        verdict="AUTHORIZED_AND_DISPATCHED",
+        authorized_supplier="Hexagon National Strategic Industries",
+        supplier_country="DOMESTIC",
+        units_ordered=1000,
+        material_cost_eur=120000.0,
+        carrier_assigned="National Sovereign Air Express",
+        freight_cost_eur=15000.0,
+        total_commitment_eur=135000.0,
+        estimated_arrival_days=3,
+        strategic_reserve_secured=True,
+        trade_off_resolution="Compliant domestic partner selected",
+    )
+    assert decision.total_commitment_eur == 135000.0
+
+
+def test_export_executive_report(tmp_path):
+    """Verify that crisis execution states export clean audit JSON reports."""
+    import json
+    from src.supply_chain.reports import export_executive_report
+
+    mock_state = {
+        "sku": "SKU-MED-901",
+        "sku_description": "Critical Emergency Mask Units",
+        "current_inventory": 750,
+        "strategic_reserve_floor": 500,
+        "orchestrator_decision": {"verdict": "AUTHORIZED_AND_DISPATCHED"},
+        "compliance_review": {"status": "APPROVED"},
+        "agent_logs": ["Log entry 1", "Log entry 2"],
+        "messages": [],
+    }
+
+    report_path = export_executive_report(mock_state, thread_id="test-thread-99", output_dir=str(tmp_path))
+    assert os.path.exists(report_path)
+
+    with open(report_path, "r", encoding="utf-8") as f:
+        data = json.load(f)
+
+    assert data["metadata"]["thread_id"] == "test-thread-99"
+    assert data["target_context"]["sku"] == "SKU-MED-901"
+    assert data["executive_decision"]["verdict"] == "AUTHORIZED_AND_DISPATCHED"
+
+
+def test_deepseek_llm_factory(monkeypatch):
+    """Verify that get_agent_llm instantiates ChatOpenAI configured for DeepSeek."""
+    monkeypatch.setenv("LLM_PROVIDER", "deepseek")
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "sk-fake-deepseek-key-12345")
+    monkeypatch.setenv("LLM_MODE", "live")
+
+    from src.supply_chain.llm import get_agent_llm
+    from langchain_openai import ChatOpenAI
+
+    model = get_agent_llm()
+    assert isinstance(model, ChatOpenAI)
+    assert "deepseek" in str(model.openai_api_base).lower()
+

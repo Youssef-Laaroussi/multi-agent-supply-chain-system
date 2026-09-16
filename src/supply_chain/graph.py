@@ -8,9 +8,10 @@ Built strictly according to official LangGraph documentation:
 - In-memory persistence via `langgraph.checkpoint.memory.MemorySaver`
 """
 
-from typing import Literal
+from typing import Literal, Optional, Union
 from langgraph.graph import StateGraph, START, END
-from langgraph.checkpoint.memory import MemorySaver
+from langgraph.checkpoint.base import BaseCheckpointSaver
+from src.supply_chain.memory import get_checkpointer
 
 from src.supply_chain.state import SupplyChainState
 from src.supply_chain.agents import (
@@ -40,12 +41,17 @@ def guardrail_conditional_router(
     return "orchestrator_agent"
 
 
-def build_supply_chain_graph(use_checkpointer: bool = True):
+def build_supply_chain_graph(
+    checkpointer: Optional[Union[bool, BaseCheckpointSaver]] = True,
+):
     """
     Constructs and compiles the official LangGraph multi-agent pipeline.
 
     Args:
-        use_checkpointer (bool): Enables MemorySaver checkpointer for state persistence.
+        checkpointer: 
+            - True: uses the configured checkpointer from src.supply_chain.memory
+            - False or None: compiles without state persistence
+            - BaseCheckpointSaver instance: explicitly uses the provided checkpointer
 
     Returns:
         CompiledStateGraph: Ready-to-invoke LangGraph runnable.
@@ -82,9 +88,15 @@ def build_supply_chain_graph(use_checkpointer: bool = True):
     workflow.add_edge("logistics_agent", "orchestrator_agent")
     workflow.add_edge("orchestrator_agent", END)
 
-    # 5. Attach LangGraph Checkpointer (Memory)
-    checkpointer = MemorySaver() if use_checkpointer else None
-    return workflow.compile(checkpointer=checkpointer)
+    # 5. Resolve LangGraph Checkpointer
+    active_checkpointer = None
+    if isinstance(checkpointer, BaseCheckpointSaver):
+        active_checkpointer = checkpointer
+    elif checkpointer is True:
+        active_checkpointer = get_checkpointer()
+
+    return workflow.compile(checkpointer=active_checkpointer)
+
 
 
 # Pre-compiled application instance

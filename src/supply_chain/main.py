@@ -17,8 +17,10 @@ from rich import box
 
 from src.supply_chain.graph import build_supply_chain_graph
 from src.supply_chain.config import SystemConfig
+from src.supply_chain.reports import export_executive_report
 
 console = Console()
+
 
 
 def display_banner():
@@ -137,10 +139,15 @@ def run_crisis_simulation(sku: str = "SKU-MED-901", starting_stock: int = 750):
         console.print(table)
         console.print(f"\n[bold green]✔ Supply chain crisis successfully resolved under full state compliance.[/bold green]\n")
 
+    # 5. Export Statutory Audit Report to JSON
+    report_file = export_executive_report(final_state, thread_id)
+    console.print(f"[bold cyan]📁 Statutory Audit Report exported:[/bold cyan] [underline]{report_file}[/underline]\n")
+
 
 def main():
     """Main CLI entrypoint."""
     run_crisis_simulation()
+
 
 
 if __name__ == "__main__":
