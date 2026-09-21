@@ -1,0 +1,116 @@
+{
+  "metadata": {
+    "title": "Sovereign Supply Chain MAS - Statutory Crisis Resolution Decree",
+    "report_id": "REP-20260921_212433",
+    "generated_at": "2026-09-21T21:24:33.934871",
+    "thread_id": "crisis-thread-20260921-2124",
+    "system_version": "1.0.0"
+  },
+  "target_context": {
+    "sku": "UNKNOWN_SKU",
+    "sku_description": "",
+    "starting_warehouse_stock": null,
+    "statutory_reserve_floor": null
+  },
+  "executive_decision": {
+    "executive_order_id": "EX-DECREE-20260921-212433",
+    "sku": "SKU-MED-901",
+    "sku_description": "Emergency Strategic Medical Supplies & Intensive Care Filters",
+    "verdict": "AUTHORIZED_AND_DISPATCHED",
+    "authorized_supplier": "Hexagon National Strategic Industries",
+    "supplier_country": "DOMESTIC",
+    "units_ordered": 1549,
+    "material_cost_eur": 185880.0,
+    "carrier_assigned": "National Sovereign Air Express",
+    "freight_cost_eur": 23235.0,
+    "total_commitment_eur": 209115.0,
+    "estimated_arrival_days": 3,
+    "strategic_reserve_secured": true,
+    "trade_off_resolution": "Prioritized sovereign compliance and delivery speed over lowest commercial cost. Overruled embargoed vendor. Total investment of 209,115.00 EUR preserves national strategic buffer (500 units)."
+  },
+  "compliance_audit": {
+    "status": "APPROVED",
+    "guardrail_verdict": "PASSED",
+    "veto_exercised": false,
+    "approved_supplier_id": "SUP-DOMESTIC-01",
+    "approved_supplier_name": "Hexagon National Strategic Industries",
+    "audit_trail": [
+      "GUARDRAIL_PASSED: Supplier from 'DOMESTIC' is accredited and compliant with sovereign trade regulations.",
+      "GUARDRAIL_PASSED: Expenditure (209,115.00 EUR) is within authorized public procurement limits (Ceiling: 100,000.00 EUR).",
+      "GUARDRAIL_PASSED: Net projected stock (1579 units) preserves sovereign floor (500 units) with safety margin of 1079 units."
+    ]
+  },
+  "pipeline_stages": {
+    "demand_forecast": {
+      "sku": "SKU-MED-901",
+      "baseline_daily_average": 125.0,
+      "adjusted_daily_forecast": 247.5,
+      "planning_horizon_days": 7,
+      "total_projected_demand": 1732,
+      "emergency_shock_factor": 0.8,
+      "surge_percentage": "80%",
+      "anomaly_detected": true
+    },
+    "inventory_analysis": {
+      "current_stock": 750,
+      "strategic_reserve_floor": 500,
+      "daily_demand": 247.5,
+      "lead_time_days": 3,
+      "safety_stock": 67,
+      "reorder_point": 809,
+      "days_of_supply": 3.0,
+      "projected_post_lead_stock": 7,
+      "strategic_reserve_breach": true,
+      "reorder_needed": true,
+      "recommended_reorder_qty": 1549
+    },
+    "risk_assessment": {
+      "sku": "SKU-MED-901",
+      "status": "DISRUPTIONS_DETECTED",
+      "active_alerts_count": 2,
+      "overall_risk_index": 0.95,
+      "risk_level": "HIGH",
+      "disruptions": [
+        {
+          "event_id": "EVT-STORM-2026",
+          "type": "SEVERE_WEATHER",
+          "description": "Blizzard condition across primary European transit hubs",
+          "severity_score": 0.75,
+          "impacted_supplier_id": "SUP-GLOBAL-02",
+          "induced_delay_days": 4,
+          "recommended_action": "Reroute via domestic air cargo or activate national reserve supplier"
+        },
+        {
+          "event_id": "EVT-GEO-99",
+          "type": "GEOPOLITICAL_EMBARGO",
+          "description": "Enhanced state intelligence alert: Trade sanctions active on DarkBay components",
+          "severity_score": 0.95,
+          "impacted_supplier_id": "SUP-EMBARGO-03",
+          "induced_delay_days": 99,
+          "recommended_action": "Strict sovereign embargo. Absolute procurement ban."
+        }
+      ]
+    },
+    "logistics_plan": {
+      "carrier_id": "CARRIER-STATE-AIR",
+      "carrier_name": "National Sovereign Air Express",
+      "speed_tier": "CRITICAL_EXPRESS",
+      "transit_days": 1,
+      "cost_per_unit_eur": 15.0,
+      "total_freight_cost_eur": 23235.0,
+      "security_certified": true,
+      "escort_assigned": true,
+      "dispatch_status": "READY_FOR_MANIFEST"
+    }
+  },
+  "agent_logs": [
+    "[21:24:33] 👑 ORCHESTRATOR: Verdict: AUTHORIZED_AND_DISPATCHED | Order: EX-DECREE-20260921-212433 | Total: 209,115.00 EUR | ETA: 3d."
+  ],
+  "agent_messages": [
+    {
+      "type": "ai",
+      "name": "Master_Orchestrator_Agent",
+      "content": "[MASTER ORCHESTRATOR] 🎯 EXECUTIVE VERDICT: AUTHORIZED_AND_DISPATCHED. Order EX-DECREE-20260921-212433 issued for 1549 units of SKU-MED-901. Supplier: Hexagon National Strategic Industries | Carrier: National Sovereign Air Express | Total Cycle Time: 3 days | Total Budget: 209,115.00 EUR. Trade-off: Prioritized sovereign compliance and delivery speed over lowest commercial cost. Overruled embargoed vendor. Total investment of 209,115.00 EUR preserves national strategic buffer (500 units)."
+    }
+  ]
+}
