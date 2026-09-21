@@ -47,7 +47,6 @@ def demand_forecasting_node(state: SupplyChainState) -> Dict[str, Any]:
     ai_msg = AIMessage(
         content=reasoning,
         name="Demand_Forecasting_Agent",
-        tool_calls=ai_response.tool_calls,
     )
     log_entry = (
         f"[{datetime.now().strftime('%H:%M:%S')}] 📈 DEMAND_AGENT: "

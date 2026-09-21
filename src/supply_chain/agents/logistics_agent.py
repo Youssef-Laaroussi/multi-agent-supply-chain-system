@@ -49,8 +49,7 @@ def logistics_orchestration_node(state: SupplyChainState) -> Dict[str, Any]:
 
     ai_msg = AIMessage(
         content=reasoning,
-        name="Logistics_Fleet_Agent",
-        tool_calls=ai_response.tool_calls,
+        name="Logistics_Agent",
     )
     log_entry = (
         f"[{datetime.now().strftime('%H:%M:%S')}] 🚚 LOGISTICS_AGENT: "

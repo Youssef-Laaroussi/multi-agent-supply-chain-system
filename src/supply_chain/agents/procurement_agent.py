@@ -54,8 +54,7 @@ def procurement_sourcing_node(state: SupplyChainState) -> Dict[str, Any]:
 
     ai_msg = AIMessage(
         content=reasoning,
-        name="Procurement_Sourcing_Agent",
-        tool_calls=ai_response.tool_calls,
+        name="Procurement_Agent",
     )
     log_entry = (
         f"[{datetime.now().strftime('%H:%M:%S')}] 🤝 PROCUREMENT_AGENT: "

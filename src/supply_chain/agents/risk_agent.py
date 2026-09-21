@@ -42,8 +42,7 @@ def risk_assessment_node(state: SupplyChainState) -> Dict[str, Any]:
 
     ai_msg = AIMessage(
         content=reasoning,
-        name="Risk_Disruption_Agent",
-        tool_calls=ai_response.tool_calls,
+        name="Risk_Radar_Agent",
     )
     log_entry = (
         f"[{datetime.now().strftime('%H:%M:%S')}] ⚠️ RISK_AGENT: "
