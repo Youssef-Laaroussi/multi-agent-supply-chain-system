@@ -100,4 +100,4 @@ def build_supply_chain_graph(
 
 
 # Pre-compiled application instance
-supply_chain_app = build_supply_chain_graph(use_checkpointer=True)
+supply_chain_app = build_supply_chain_graph(checkpointer=True)

@@ -8,7 +8,12 @@ Demonstrates:
 """
 
 import sys
+import os
 from datetime import datetime
+from dotenv import load_dotenv
+
+# Load environment variables from .env
+load_dotenv()
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
@@ -48,7 +53,7 @@ def run_crisis_simulation(sku: str = "SKU-MED-901", starting_stock: int = 750):
     console.print(f"• Statutory Strategic Reserve Floor: [bold red]{SystemConfig.CRITICAL_STRATEGIC_RESERVE_FLOOR} units[/bold red] (Untouchable)\n")
 
     # 1. Build workflow with official LangGraph MemorySaver checkpointer
-    app = build_supply_chain_graph(use_checkpointer=True)
+    app = build_supply_chain_graph(checkpointer=True)
 
     # 2. Setup persistent memory thread config
     thread_id = f"crisis-thread-{datetime.now().strftime('%Y%m%d-%H%M')}"
