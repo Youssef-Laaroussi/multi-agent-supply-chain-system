@@ -7,52 +7,60 @@ Official LangChain & LangGraph implementation:
 - Returns AIMessage with disruption details and tool calls
 """
 
+import json
 from datetime import datetime
 from typing import Any, Dict
-from langchain_core.messages import AIMessage, SystemMessage
+from langchain_core.messages import AIMessage, SystemMessage, ToolMessage
 from src.supply_chain.state import SupplyChainState
 from src.supply_chain.tools.risk_radar_tools import query_risk_radar_tool
 from src.supply_chain.prompts import RISK_AGENT_PROMPT
 from src.supply_chain.llm import get_agent_llm
 
-
 def risk_assessment_node(state: SupplyChainState) -> Dict[str, Any]:
-    """
-    LangGraph agent node: Monitors external environmental and transit risks.
-    """
     sku = state.get("sku", "SKU-MED-901")
-
-    # 1. Official tool binding and model invocation
     model = get_agent_llm(temperature=0.0).bind_tools([query_risk_radar_tool])
-    system_msg = SystemMessage(content=RISK_AGENT_PROMPT)
-    ai_response = model.invoke([system_msg] + state.get("messages", []))
+    
+    context = f"\n\nContext:\nTarget SKU: {sku}"
+    system_msg = SystemMessage(content=RISK_AGENT_PROMPT + context)
+    messages = [system_msg] + state.get("messages", [])
+    
+    ai_response = model.invoke(messages)
+    risk_data = {}
+    tool_messages = []
+    log_entry = ""
+    messages_to_add = [ai_response]
 
-    # 2. Execute tool invocation
-    risk_data = query_risk_radar_tool.invoke({"sku": sku})
+    if hasattr(ai_response, "tool_calls") and ai_response.tool_calls:
+        for tool_call in ai_response.tool_calls:
+            if tool_call["name"] == "query_risk_radar_tool":
+                args = tool_call["args"]
+                if "sku" not in args:
+                    args["sku"] = sku
+                
+                risk_data = query_risk_radar_tool.invoke(args)
+                tool_msg = ToolMessage(
+                    content=json.dumps(risk_data),
+                    name=tool_call["name"],
+                    tool_call_id=tool_call["id"]
+                )
+                tool_messages.append(tool_msg)
 
-    alerts_summary = "; ".join(
-        f"[{d['type']}] {d['description']} (Delay: +{d['induced_delay_days']}d on {d['impacted_supplier_id']})"
-        for d in risk_data["disruptions"]
-    )
+        if tool_messages:
+            messages_to_add.extend(tool_messages)
+            final_response = model.invoke(messages + messages_to_add)
+            messages_to_add.append(AIMessage(content=final_response.content, name="Risk_Radar_Agent"))
+            level = risk_data.get('risk_level', 'UNKNOWN')
+            index = risk_data.get('overall_risk_index', 0.0)
+            alerts = risk_data.get('active_alerts_count', 0)
+            log_entry = f"[{datetime.now().strftime('%H:%M:%S')}] ⚠️ RISK_AGENT: Risk Level: {level} (Index: {index}) | {alerts} alerts active."
 
-    reasoning = (
-        f"[RISK RADAR AGENT] Global threat index: {risk_data['overall_risk_index']} ({risk_data['risk_level']}). "
-        f"Active disruptions detected ({risk_data['active_alerts_count']}): {alerts_summary}."
-    )
-
-    ai_msg = AIMessage(
-        content=reasoning,
-        name="Risk_Radar_Agent",
-    )
-    log_entry = (
-        f"[{datetime.now().strftime('%H:%M:%S')}] ⚠️ RISK_AGENT: "
-        f"Risk Level: {risk_data['risk_level']} (Index: {risk_data['overall_risk_index']}) | "
-        f"{risk_data['active_alerts_count']} alerts active."
-    )
+    if not risk_data:
+        messages_to_add = [AIMessage(content=ai_response.content, name="Risk_Radar_Agent")]
+        log_entry = f"[{datetime.now().strftime('%H:%M:%S')}] ⚠️ RISK_AGENT: Manual risk assessment without tools."
 
     return {
         "risk_assessment": risk_data,
         "current_step": "RISK_ASSESSMENT_COMPLETED",
         "agent_logs": [log_entry],
-        "messages": [ai_msg],
+        "messages": messages_to_add,
     }

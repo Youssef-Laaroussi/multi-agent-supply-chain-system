@@ -8,7 +8,7 @@ Adheres to official LangChain & LangGraph BaseMessage communication.
 
 from datetime import datetime
 from typing import Any, Dict
-from langchain_core.messages import AIMessage
+from langgraph.types import Command
 from src.supply_chain.state import SupplyChainState
 from src.supply_chain.guardrails import (
     validate_embargo_sanctions_guardrail,
@@ -18,7 +18,7 @@ from src.supply_chain.guardrails import (
 from src.supply_chain.config import SystemConfig
 
 
-def compliance_governance_node(state: SupplyChainState) -> Dict[str, Any]:
+def compliance_governance_node(state: SupplyChainState) -> Command:
     """
     LangGraph node: Audits proposed transactions against state regulations and sovereign rules.
 
@@ -26,7 +26,7 @@ def compliance_governance_node(state: SupplyChainState) -> Dict[str, Any]:
         state (SupplyChainState): Current workflow state with tentative procurement selection.
 
     Returns:
-        Dict[str, Any]: State update with compliance review, approved vendor, and AIMessage.
+        Command: Routes to logistics_agent if compliant, orchestrator_agent otherwise.
     """
     tentative = state.get("selected_procurement") or {}
     proposals = state.get("procurement_proposals", [])
@@ -99,25 +99,22 @@ def compliance_governance_node(state: SupplyChainState) -> Dict[str, Any]:
         "audit_trail": audit_log,
     }
 
-    reasoning = (
-        f"[COMPLIANCE & STATE AGENT] Statutory audit complete. Status: {compliance_summary['status']}. "
-        f"Veto exercised: {veto_issued}. "
-        f"Legally authorized vendor: {approved_vendor.get('supplier_name') if approved_vendor else 'NONE'}. "
-        f"Audit findings: {' | '.join(audit_log)}"
-    )
-
-    ai_message = AIMessage(content=reasoning, name="Sovereign_Compliance_Agent")
     log_entry = (
         f"[{datetime.now().strftime('%H:%M:%S')}] 🏛️ COMPLIANCE_AGENT: "
         f"Status: {compliance_summary['status']} | Veto: {veto_issued} | "
-        f"Authorized: {approved_vendor.get('supplier_name') if approved_vendor else 'NONE'}."
+        f"Authorized: {approved_vendor.get('supplier_name') if approved_vendor else 'NONE'}. "
+        f"Audit findings: {' | '.join(audit_log)}"
     )
 
-    return {
-        "selected_procurement": approved_vendor,
-        "compliance_review": compliance_summary,
-        "is_compliant": is_compliant,
-        "current_step": "COMPLIANCE_REVIEW_COMPLETED",
-        "agent_logs": [log_entry],
-        "messages": [ai_message],
-    }
+    goto_node = "logistics_agent" if is_compliant else "orchestrator_agent"
+
+    return Command(
+        goto=goto_node,
+        update={
+            "selected_procurement": approved_vendor,
+            "compliance_review": compliance_summary,
+            "is_compliant": is_compliant,
+            "current_step": "COMPLIANCE_REVIEW_COMPLETED",
+            "agent_logs": [log_entry],
+        }
+    )

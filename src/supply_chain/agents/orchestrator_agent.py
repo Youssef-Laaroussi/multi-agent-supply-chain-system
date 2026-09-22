@@ -6,22 +6,15 @@ and issues the binding Executive Supply Order.
 Adheres to official LangChain & LangGraph standards with BaseMessage history.
 """
 
+import json
 from datetime import datetime
 from typing import Any, Dict
-from langchain_core.messages import AIMessage
+from langchain_core.messages import AIMessage, SystemMessage
 from src.supply_chain.state import SupplyChainState
-
+from src.supply_chain.prompts import ORCHESTRATOR_PROMPT
+from src.supply_chain.llm import get_agent_llm
 
 def orchestrator_control_tower_node(state: SupplyChainState) -> Dict[str, Any]:
-    """
-    LangGraph node: Arbitrates final trade-offs and generates binding executive decision.
-
-    Args:
-        state (SupplyChainState): Complete accumulated state across all nodes.
-
-    Returns:
-        Dict[str, Any]: State update with orchestrator_decision, is_completed, and AIMessage.
-    """
     sku = state.get("sku", "SKU-MED-901")
     procurement = state.get("selected_procurement") or {}
     compliance = state.get("compliance_review", {})
@@ -35,7 +28,6 @@ def orchestrator_control_tower_node(state: SupplyChainState) -> Dict[str, Any]:
     transit_days = logistics.get("transit_days", 1)
     total_cycle_time_days = supplier_lead + transit_days
 
-    # Executive Order validation
     is_approved = compliance.get("status") == "APPROVED" and procurement.get("supplier_id") is not None
 
     decision_summary = {
@@ -52,19 +44,22 @@ def orchestrator_control_tower_node(state: SupplyChainState) -> Dict[str, Any]:
         "total_commitment_eur": total_investment_eur,
         "estimated_arrival_days": total_cycle_time_days,
         "strategic_reserve_secured": True,
-        "trade_off_resolution": (
-            f"Prioritized sovereign compliance and delivery speed over lowest commercial cost. "
-            f"Overruled embargoed vendor. Total investment of {total_investment_eur:,.2f} EUR "
-            f"preserves national strategic buffer ({state.get('strategic_reserve_floor', 500)} units)."
-        ),
     }
 
+    model = get_agent_llm(temperature=0.0)
+    context = f"\n\nContext:\nDecision Summary: {json.dumps(decision_summary, indent=2)}\nState Audit Logs: {state.get('agent_logs', [])}"
+    system_msg = SystemMessage(content=ORCHESTRATOR_PROMPT + context)
+    messages = [system_msg] + state.get("messages", [])
+    
+    ai_response = model.invoke(messages)
+    decision_summary["trade_off_resolution"] = ai_response.content
+    
     reasoning = (
         f"[MASTER ORCHESTRATOR] 🎯 EXECUTIVE VERDICT: {decision_summary['verdict']}. "
         f"Order {decision_summary['executive_order_id']} issued for {decision_summary['units_ordered']} units of {sku}. "
         f"Supplier: {decision_summary['authorized_supplier']} | Carrier: {decision_summary['carrier_assigned']} | "
         f"Total Cycle Time: {total_cycle_time_days} days | Total Budget: {total_investment_eur:,.2f} EUR. "
-        f"Trade-off: {decision_summary['trade_off_resolution']}"
+        f"Trade-off Resolution:\n{decision_summary['trade_off_resolution']}"
     )
 
     ai_message = AIMessage(content=reasoning, name="Master_Orchestrator_Agent")
