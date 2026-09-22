@@ -12,64 +12,43 @@ from datetime import datetime
 from typing import Any, Dict
 from langchain_core.messages import AIMessage, SystemMessage, ToolMessage
 from src.supply_chain.state import SupplyChainState
-from src.supply_chain.tools.supplier_tools import evaluate_supplier_proposals_tool
+from src.supply_chain.tools.procurement_tools import evaluate_supplier_proposals_tool
 from src.supply_chain.prompts import PROCUREMENT_AGENT_PROMPT
-from src.supply_chain.llm import get_agent_llm
+from src.supply_chain.agents.agent_factory import build_react_agent
 
 def procurement_sourcing_node(state: SupplyChainState) -> Dict[str, Any]:
     inventory_data = state.get("inventory_analysis", {})
-    quantity_needed = inventory_data.get("recommended_reorder_qty", 1000)
-    risk_data = state.get("risk_assessment", {})
-    disruptions = risk_data.get("disruptions", [])
-
-    model = get_agent_llm(temperature=0.0).bind_tools([evaluate_supplier_proposals_tool])
+    required_qty = inventory_data.get("recommended_reorder_qty", 500)
     
-    context = f"\n\nContext:\nQuantity Needed: {quantity_needed}\nActive Disruptions: {json.dumps(disruptions)}"
+    risk_data = state.get("geopolitical_risk", {})
+    supplier_delay = risk_data.get("expected_delay_days", 0)
+
+    context = f"\n\nContext:\nRequired Quantity: {required_qty}\nRisk Delays: +{supplier_delay} days"
     system_msg = SystemMessage(content=PROCUREMENT_AGENT_PROMPT + context)
-    messages = [system_msg] + state.get("messages", [])
     
-    ai_response = model.invoke(messages)
+    agent = build_react_agent([evaluate_supplier_proposals_tool])
+    result = agent.invoke({"messages": [system_msg] + state.get("messages", [])})
+    
     proposals = []
-    tentative_choice = None
-    tool_messages = []
-    log_entry = ""
-    messages_to_add = [ai_response]
+    for msg in result["messages"]:
+        if isinstance(msg, ToolMessage) and msg.name == "evaluate_supplier_proposals_tool":
+            try:
+                proposals = json.loads(msg.content)
+            except json.JSONDecodeError:
+                pass
 
-    if hasattr(ai_response, "tool_calls") and ai_response.tool_calls:
-        for tool_call in ai_response.tool_calls:
-            if tool_call["name"] == "evaluate_supplier_proposals_tool":
-                args = tool_call["args"]
-                if "quantity_needed" not in args:
-                    args["quantity_needed"] = quantity_needed
-                if "disruptions" not in args:
-                    args["disruptions"] = disruptions
-                
-                proposals = evaluate_supplier_proposals_tool.invoke(args)
-                tool_msg = ToolMessage(
-                    content=json.dumps(proposals),
-                    name=tool_call["name"],
-                    tool_call_id=tool_call["id"]
-                )
-                tool_messages.append(tool_msg)
+    log_entry = f"[{datetime.now().strftime('%H:%M:%S')}] 🤝 PROCUREMENT_AGENT: Sourcing completed."
+    if proposals:
+        log_entry = f"[{datetime.now().strftime('%H:%M:%S')}] 🤝 PROCUREMENT_AGENT: Evaluated {len(proposals)} proposals. Selected lowest viable bid."
 
-        if tool_messages:
-            messages_to_add.extend(tool_messages)
-            final_response = model.invoke(messages + messages_to_add)
-            messages_to_add.append(AIMessage(content=final_response.content, name="Procurement_Agent"))
-            tentative_choice = proposals[0] if proposals else None
-            if tentative_choice:
-                log_entry = f"[{datetime.now().strftime('%H:%M:%S')}] 🤝 PROCUREMENT_AGENT: Ranked {len(proposals)} bids. Top candidate: {tentative_choice['supplier_name']} ({tentative_choice['total_material_cost_eur']:,.2f} EUR)."
-            else:
-                log_entry = f"[{datetime.now().strftime('%H:%M:%S')}] 🤝 PROCUREMENT_AGENT: No valid proposals found."
-
-    if not proposals:
-        messages_to_add = [AIMessage(content=ai_response.content, name="Procurement_Agent")]
-        log_entry = f"[{datetime.now().strftime('%H:%M:%S')}] 🤝 PROCUREMENT_AGENT: Manual supplier evaluation without tools."
+    new_messages = result["messages"][len(state.get("messages", [])) + 1:] 
+    
+    selected = proposals[0] if proposals else None
 
     return {
         "procurement_proposals": proposals,
-        "selected_procurement": tentative_choice,
-        "current_step": "PROCUREMENT_QUOTED",
+        "selected_procurement": selected,
+        "current_step": "PROCUREMENT_SOURCING_COMPLETED",
         "agent_logs": [log_entry],
-        "messages": messages_to_add,
+        "messages": new_messages,
     }

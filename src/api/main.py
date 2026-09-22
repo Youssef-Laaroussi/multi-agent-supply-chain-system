@@ -23,6 +23,7 @@ app.add_middleware(
 class SimulationRequest(BaseModel):
     sku: str = "SKU-MED-901"
     starting_stock: int = 750
+    prompt: str = ""
 
 @app.post("/api/simulate")
 async def start_simulation(request: SimulationRequest):
@@ -33,6 +34,11 @@ async def start_simulation(request: SimulationRequest):
         graph = build_supply_chain_graph(use_checkpointer=False)
         thread_id = f"crisis-thread-{datetime.now().strftime('%Y%m%d-%H%M')}"
         config = {"configurable": {"thread_id": thread_id}}
+
+        from langchain_core.messages import HumanMessage
+        initial_messages = []
+        if request.prompt:
+            initial_messages.append(HumanMessage(content=request.prompt))
 
         initial_state = {
             "sku": request.sku,
@@ -48,7 +54,7 @@ async def start_simulation(request: SimulationRequest):
             "logistics_plan": {},
             "orchestrator_decision": {},
             "agent_logs": [],
-            "messages": [],
+            "messages": initial_messages,
             "current_step": "INITIALIZED",
             "is_compliant": False,
             "is_completed": False,

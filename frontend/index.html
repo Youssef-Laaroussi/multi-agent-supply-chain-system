@@ -8,96 +8,9 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="./style.css">
   </head>
   <body>
-    <div id="app" class="dashboard-container">
-      
-      <header class="glass-header">
-        <div class="logo">
-          <h1>🏛️ Sovereign Supply Chain MAS</h1>
-          <span class="subtitle">Autonomous Resilient Orchestration Control Tower</span>
-        </div>
-        <div class="controls">
-          <div class="input-group">
-            <label for="sku-input">Target SKU</label>
-            <input type="text" id="sku-input" value="SKU-MED-901">
-          </div>
-          <div class="input-group">
-            <label for="stock-input">Current Stock</label>
-            <input type="number" id="stock-input" value="750">
-          </div>
-          <button id="start-btn" class="primary-btn pulse-glow">INITIALIZE SIMULATION</button>
-        </div>
-      </header>
-
-      <main class="dashboard-grid">
-        
-        <!-- Left Panel: Agent Status Grid -->
-        <section class="agents-panel glass-panel">
-          <h2>Agent Network Status</h2>
-          <div class="agents-grid" id="agents-grid">
-            <!-- Agents will be dynamically highlighted here -->
-            <div class="agent-card" id="agent-demand_agent">
-              <span class="icon">📈</span>
-              <span class="name">Demand Forecaster</span>
-              <div class="status-indicator"></div>
-            </div>
-            <div class="agent-card" id="agent-inventory_agent">
-              <span class="icon">📦</span>
-              <span class="name">Inventory Optimizer</span>
-              <div class="status-indicator"></div>
-            </div>
-            <div class="agent-card" id="agent-risk_agent">
-              <span class="icon">⚠️</span>
-              <span class="name">Risk & Disruption Radar</span>
-              <div class="status-indicator"></div>
-            </div>
-            <div class="agent-card" id="agent-procurement_agent">
-              <span class="icon">🤝</span>
-              <span class="name">Procurement Agent</span>
-              <div class="status-indicator"></div>
-            </div>
-            <div class="agent-card" id="agent-compliance_guardrail">
-              <span class="icon">🛡️</span>
-              <span class="name">Compliance Guardrail</span>
-              <div class="status-indicator"></div>
-            </div>
-            <div class="agent-card" id="agent-logistics_agent">
-              <span class="icon">🚚</span>
-              <span class="name">Logistics & Fleet</span>
-              <div class="status-indicator"></div>
-            </div>
-            <div class="agent-card orchestrator" id="agent-orchestrator_agent">
-              <span class="icon">👑</span>
-              <span class="name">Master Orchestrator</span>
-              <div class="status-indicator"></div>
-            </div>
-          </div>
-        </section>
-
-        <!-- Right Panel: Terminal & Stream Logs -->
-        <section class="terminal-panel glass-panel">
-          <div class="terminal-header">
-            <span>Terminal Output Stream</span>
-            <span class="status-dot disconnected" id="connection-status"></span>
-          </div>
-          <div class="terminal-content" id="terminal-content">
-            <div class="log system">System ready. Waiting to start simulation...</div>
-          </div>
-        </section>
-
-      </main>
-
-      <!-- Bottom Panel: Executive Decree (Hidden by default) -->
-      <footer class="decree-panel glass-panel hidden" id="decree-panel">
-        <h2>📋 Executive Supply Chain Summary Decree</h2>
-        <div class="decree-content" id="decree-content">
-          <!-- Filled dynamically -->
-        </div>
-      </footer>
-
-    </div>
-    <script type="module" src="./main.js"></script>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
