@@ -10,10 +10,13 @@ import {
   Activity, 
   User, 
   Settings, 
-  Hexagon,
-  Play,
-  Loader2,
-  FileText
+  Hexagon, 
+  Play, 
+  Loader2, 
+  FileText,
+  Send,
+  Sparkles,
+  RotateCcw
 } from 'lucide-react';
 
 export default function App() {
@@ -23,7 +26,11 @@ export default function App() {
   
   const [isSimulating, setIsSimulating] = useState(false);
   const [chatHistory, setChatHistory] = useState([
-    { role: 'system', content: 'System ready. Waiting to start simulation...', id: 'init' }
+    { 
+      role: 'system', 
+      content: 'Bienvenue sur la Tour de Contrôle Multi-Agents. Tapez une instruction ci-dessous ou cliquez sur une suggestion rapide pour lancer la simulation.', 
+      id: 'init' 
+    }
   ]);
   const [activeAgent, setActiveAgent] = useState(null);
   const [doneAgents, setDoneAgents] = useState([]);
@@ -38,12 +45,26 @@ export default function App() {
     setChatHistory(prev => [...prev, { role, content, agentName, id: Math.random().toString() }]);
   };
 
-  const startSimulation = async () => {
-    if (!sku || !stock) return;
+  const clearChat = () => {
+    setChatHistory([
+      { 
+        role: 'system', 
+        content: 'Session réinitialisée. Prêt pour une nouvelle analyse.', 
+        id: Math.random().toString() 
+      }
+    ]);
+    setActiveAgent(null);
+    setDoneAgents([]);
+    setDecision(null);
+  };
+
+  const startSimulation = async (customPrompt = null) => {
+    const textToSend = customPrompt !== null ? customPrompt : prompt;
+    if (!sku || !stock || !textToSend) return;
 
     setIsSimulating(true);
-    appendChat('user', `Target: ${sku} | Stock: ${stock}\nCommand: ${prompt}`);
-    appendChat('system', `Initializing multi-agent simulation...`);
+    appendChat('user', `Cible: ${sku} | Stock: ${stock} unités\nInstruction: ${textToSend}`);
+    appendChat('system', `Initialisation de la simulation multi-agents pour ${sku}...`);
     setDoneAgents([]);
     setActiveAgent(null);
     setDecision(null);
@@ -52,10 +73,10 @@ export default function App() {
       const response = await fetch('http://localhost:8000/api/simulate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sku, starting_stock: parseInt(stock), prompt })
+        body: JSON.stringify({ sku, starting_stock: parseInt(stock), prompt: textToSend })
       });
 
-      if (!response.ok) throw new Error('Failed to start simulation on server.');
+      if (!response.ok) throw new Error('Échec de la connexion au serveur API.');
 
       const reader = response.body.getReader();
       const decoder = new TextDecoder('utf-8');
@@ -79,7 +100,7 @@ export default function App() {
         }
       }
     } catch (error) {
-      appendChat('system', `Error: ${error.message}`);
+      appendChat('system', `Erreur: ${error.message}`);
     } finally {
       setIsSimulating(false);
     }
@@ -103,7 +124,7 @@ export default function App() {
     if (data.message) {
        appendChat(data.node === 'orchestrator_agent' ? 'orchestrator' : 'agent', data.message, cleanName);
     } else {
-       appendChat('system', `[${cleanName}] is analyzing data...`);
+       appendChat('system', `[${cleanName}] analyse les données...`);
     }
     
     if (data.node === 'orchestrator_agent' && data.state_update?.orchestrator_decision) {
@@ -119,6 +140,13 @@ export default function App() {
     { id: 'compliance_guardrail', icon: <Scale size={18} />, name: 'Compliance' },
     { id: 'logistics_agent', icon: <Truck size={18} />, name: 'Logistics' },
     { id: 'orchestrator_agent', icon: <Network size={18} />, name: 'Orchestrator', special: true },
+  ];
+
+  const quickPrompts = [
+    { label: "🚢 Risque Transport Suez", text: "Alerte: Perturbation majeure sur le transit maritime. Évaluer les routes alternatives et le surcoût logistique." },
+    { label: "📦 Rupture Stock Critique", text: "Urgence: Risque d'épuisement des stocks sous 10 jours. Activer réapprovisionnement prioritaire." },
+    { label: "⚖️ Audit Conformité UE", text: "Audit réglementaire: Valider l'éligibilité des fournisseurs alternatifs selon les normes ISO/REACH." },
+    { label: "💰 Optimisation Coûts", text: "Analyser le meilleur arbitrage coût / délai de livraison parmi les fournisseurs disponibles." }
   ];
 
   const formatMoney = (val) => {
@@ -137,55 +165,44 @@ export default function App() {
           <div className="brand-icon-container">
             <Hexagon className="brand-icon" size={28} />
           </div>
-          <h1>Sovereign MAS Control</h1>
+          <h1><span className="brand-highlight">Sovereign</span> MAS Control</h1>
         </div>
         <div className="nav-metrics">
-          <div className="metric">
-            <span className="m-label">System Health</span>
-            <span className="m-val text-green">
-              <span className="status-dot"></span> Online
-            </span>
+          <div className="metric-pill">
+            <span className="status-dot"></span>
+            <span className="m-val">Système Opérationnel</span>
           </div>
           <div className="metric">
-            <span className="m-label">Active Agents</span>
-            <span className="m-val text-glow">{agents.length} Nodes</span>
+            <span className="m-label">Agents Réseau</span>
+            <span className="m-val text-yellow">{agents.length} Nodes</span>
           </div>
         </div>
       </nav>
 
       <div className="main-content">
-        {/* LEFT SIDEBAR: FUNCTIONALITY & CONTROLS */}
+        {/* LEFT SIDEBAR: PARAMÈTRES ET STATUT DES AGENTS */}
         <aside className="control-panel">
           <div className="panel-section glass-panel">
-            <h2><Settings size={20} className="section-icon" /> Simulation Parameters</h2>
+            <h2><Settings size={20} className="section-icon" /> Paramètres Cibles</h2>
             <div className="input-group">
-              <label>Target SKU</label>
+              <label>SKU Produit Cible</label>
               <input type="text" value={sku} onChange={e => setSku(e.target.value)} disabled={isSimulating} />
             </div>
             <div className="input-group">
-              <label>Current Stock Units</label>
+              <label>Stock Disponible (Unités)</label>
               <input type="number" value={stock} onChange={e => setStock(e.target.value)} disabled={isSimulating} />
             </div>
-            <div className="input-group">
-              <label>Natural Language Command</label>
-              <textarea 
-                value={prompt} 
-                onChange={e => setPrompt(e.target.value)} 
-                disabled={isSimulating}
-                rows={3}
-              />
-            </div>
-            <button className={`primary-btn ${isSimulating ? 'simulating' : ''}`} onClick={startSimulation} disabled={isSimulating}>
+            <button className={`primary-btn ${isSimulating ? 'simulating' : ''}`} onClick={() => startSimulation()} disabled={isSimulating}>
               {isSimulating ? (
-                <><Loader2 size={20} className="spin-icon" /> Simulating...</>
+                <><Loader2 size={20} className="spin-icon" /> Délibération...</>
               ) : (
-                <><Play size={20} /> Execute Mission</>
+                <><Play size={20} /> Lancer la Délibération</>
               )}
             </button>
           </div>
 
           <div className="panel-section glass-panel">
-            <h2><Activity size={20} className="section-icon" /> Agent Network</h2>
+            <h2><Activity size={20} className="section-icon" /> Réseau des Agents</h2>
             <div className="agents-list">
               {agents.map(a => {
                 const isActive = activeAgent === a.id;
@@ -201,7 +218,7 @@ export default function App() {
                     </div>
                     <span className="agent-name">{a.name}</span>
                     <span className="agent-status-badge">
-                      {isActive ? 'Working' : (isDone ? 'Complete' : 'Idle')}
+                      {isActive ? 'En action' : (isDone ? 'Terminé' : 'En attente')}
                     </span>
                   </div>
                 )
@@ -210,11 +227,22 @@ export default function App() {
           </div>
         </aside>
 
-        {/* RIGHT AREA: CHAT / TERMINAL */}
+        {/* RIGHT AREA: CHAT INTERACTIF / TERMINAL */}
         <section className="terminal-area">
           <div className="terminal-header">
-            <h3><Activity size={18} className="pulse-icon" /> Live Event Stream</h3>
+            <h3><Activity size={18} className="pulse-icon" /> Console de Dialogue & Décision Multi-Agents</h3>
+            <div className="header-actions">
+              {isSimulating && (
+                <span className="live-badge">
+                  <span className="live-dot"></span> Agents en réflexion...
+                </span>
+              )}
+              <button className="reset-btn" onClick={clearChat} title="Effacer l'historique">
+                <RotateCcw size={16} /> Réinitialiser
+              </button>
+            </div>
           </div>
+
           <div className="chat-history">
             {chatHistory.map((msg) => (
               <div key={msg.id} className={`chat-bubble-wrapper ${msg.role}`}>
@@ -232,19 +260,64 @@ export default function App() {
               <div className="decree-card slide-up-anim">
                 <div className="decree-header">
                   <FileText size={24} className="decree-icon" />
-                  <h3>Executive Supply Chain Decree</h3>
+                  <h3>Décret Exécutif de la Chaîne d'Approvisionnement</h3>
                 </div>
                 <div className="decree-grid">
                   <div className="d-item"><span className="label">Verdict</span><span className="value highlight">{decision.verdict}</span></div>
-                  <div className="d-item"><span className="label">Vendor</span><span className="value">{decision.authorized_supplier}</span></div>
-                  <div className="d-item"><span className="label">Units Ordered</span><span className="value highlight-blue">{decision.units_ordered}</span></div>
-                  <div className="d-item"><span className="label">Total Budget</span><span className="value highlight-green">{formatMoney(decision.total_commitment_eur)}</span></div>
-                  <div className="d-item"><span className="label">Carrier</span><span className="value">{decision.carrier_assigned}</span></div>
-                  <div className="d-item"><span className="label">ETA</span><span className="value">{decision.estimated_arrival_days} Days</span></div>
+                  <div className="d-item"><span className="label">Fournisseur Retenu</span><span className="value">{decision.authorized_supplier}</span></div>
+                  <div className="d-item"><span className="label">Unités à Commander</span><span className="value highlight-blue">{decision.units_ordered}</span></div>
+                  <div className="d-item"><span className="label">Budget Alloué</span><span className="value highlight-green">{formatMoney(decision.total_commitment_eur)}</span></div>
+                  <div className="d-item"><span className="label">Transporteur</span><span className="value">{decision.carrier_assigned}</span></div>
+                  <div className="d-item"><span className="label">Délai Estimé</span><span className="value">{decision.estimated_arrival_days} Jours</span></div>
                 </div>
               </div>
             )}
             <div ref={chatEndRef} />
+          </div>
+
+          {/* BARRE D'INTERACTION DU CHAT (PROMPT INPUT & QUICK CHIPS) */}
+          <div className="chat-input-container">
+            <div className="quick-suggestions">
+              <span className="suggestions-title"><Sparkles size={14} /> Suggestions :</span>
+              {quickPrompts.map((qp, idx) => (
+                <button 
+                  key={idx} 
+                  className="suggestion-pill"
+                  onClick={() => {
+                    setPrompt(qp.text);
+                    startSimulation(qp.text);
+                  }}
+                  disabled={isSimulating}
+                >
+                  {qp.label}
+                </button>
+              ))}
+            </div>
+
+            <form 
+              className="chat-input-form" 
+              onSubmit={(e) => { 
+                e.preventDefault(); 
+                if (prompt.trim()) startSimulation(); 
+              }}
+            >
+              <input
+                type="text"
+                className="chat-input-field"
+                placeholder="Écrivez votre commande aux agents ici... (ex: Analyser les risques de rupture) puis Entrée"
+                value={prompt}
+                onChange={(e) => setPrompt(e.target.value)}
+                disabled={isSimulating}
+              />
+              <button 
+                type="submit" 
+                className="chat-send-btn" 
+                disabled={isSimulating || !prompt.trim()}
+                title="Envoyer la commande (Entrée)"
+              >
+                {isSimulating ? <Loader2 size={18} className="spin-icon" /> : <Send size={18} />}
+              </button>
+            </form>
           </div>
         </section>
       </div>
