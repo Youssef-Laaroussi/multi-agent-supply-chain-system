@@ -16,7 +16,7 @@ from src.supply_chain.tools.logistics_tools import plan_freight_dispatch_tool
 from src.supply_chain.prompts import LOGISTICS_AGENT_PROMPT
 from src.supply_chain.agents.agent_factory import build_react_agent
 
-def logistics_dispatch_node(state: SupplyChainState) -> Dict[str, Any]:
+def logistics_orchestration_node(state: SupplyChainState) -> Dict[str, Any]:
     procurement = state.get("selected_procurement") or {}
     inventory_data = state.get("inventory_analysis", {})
     
@@ -51,3 +51,6 @@ def logistics_dispatch_node(state: SupplyChainState) -> Dict[str, Any]:
         "agent_logs": [log_entry],
         "messages": new_messages,
     }
+
+
+logistics_dispatch_node = logistics_orchestration_node

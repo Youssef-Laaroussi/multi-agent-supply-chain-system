@@ -26,7 +26,7 @@ def build_react_agent(tools: list):
             # Invoke the tool
             try:
                 observation = tool.invoke(tool_call["args"])
-                content = json.dumps(observation) if isinstance(observation, dict) else str(observation)
+                content = json.dumps(observation) if isinstance(observation, (dict, list)) else str(observation)
             except Exception as e:
                 content = f"Error executing tool: {e}"
             

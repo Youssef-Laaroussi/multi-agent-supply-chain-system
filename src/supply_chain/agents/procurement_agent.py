@@ -12,7 +12,7 @@ from datetime import datetime
 from typing import Any, Dict
 from langchain_core.messages import AIMessage, SystemMessage, ToolMessage
 from src.supply_chain.state import SupplyChainState
-from src.supply_chain.tools.procurement_tools import evaluate_supplier_proposals_tool
+from src.supply_chain.tools.supplier_tools import evaluate_supplier_proposals_tool
 from src.supply_chain.prompts import PROCUREMENT_AGENT_PROMPT
 from src.supply_chain.agents.agent_factory import build_react_agent
 
@@ -20,10 +20,10 @@ def procurement_sourcing_node(state: SupplyChainState) -> Dict[str, Any]:
     inventory_data = state.get("inventory_analysis", {})
     required_qty = inventory_data.get("recommended_reorder_qty", 500)
     
-    risk_data = state.get("geopolitical_risk", {})
-    supplier_delay = risk_data.get("expected_delay_days", 0)
+    risk_data = state.get("risk_assessment") or state.get("geopolitical_risk", {})
+    disruptions = risk_data.get("disruptions", [])
 
-    context = f"\n\nContext:\nRequired Quantity: {required_qty}\nRisk Delays: +{supplier_delay} days"
+    context = f"\n\nContext:\nRequired Quantity: {required_qty}\nActive Disruptions: {json.dumps(disruptions)}"
     system_msg = SystemMessage(content=PROCUREMENT_AGENT_PROMPT + context)
     
     agent = build_react_agent([evaluate_supplier_proposals_tool])

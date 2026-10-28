@@ -8,6 +8,7 @@ Adheres to official LangChain & LangGraph BaseMessage communication.
 
 from datetime import datetime
 from typing import Any, Dict
+from langchain_core.messages import AIMessage
 from langgraph.types import Command
 from src.supply_chain.state import SupplyChainState
 from src.supply_chain.guardrails import (
@@ -116,5 +117,6 @@ def compliance_governance_node(state: SupplyChainState) -> Command:
             "is_compliant": is_compliant,
             "current_step": "COMPLIANCE_REVIEW_COMPLETED",
             "agent_logs": [log_entry],
+            "messages": [AIMessage(content=log_entry, name="Compliance_Governance_Agent")],
         }
     )

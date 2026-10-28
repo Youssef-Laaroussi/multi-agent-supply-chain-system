@@ -29,6 +29,7 @@ from src.supply_chain.agents import (
 
 def build_supply_chain_graph(
     checkpointer: Optional[Union[bool, BaseCheckpointSaver]] = True,
+    use_checkpointer: Optional[bool] = None,
 ):
     """
     Constructs and compiles the official LangGraph multi-agent pipeline.
@@ -38,10 +39,14 @@ def build_supply_chain_graph(
             - True: uses the configured checkpointer from src.supply_chain.memory
             - False or None: compiles without state persistence
             - BaseCheckpointSaver instance: explicitly uses the provided checkpointer
+        use_checkpointer: Alias for checkpointer boolean flag.
 
     Returns:
         CompiledStateGraph: Ready-to-invoke LangGraph runnable.
     """
+    if use_checkpointer is not None:
+        checkpointer = use_checkpointer
+
     workflow = StateGraph(SupplyChainState)
 
     # 1. Register specialized agent and guardrail nodes
