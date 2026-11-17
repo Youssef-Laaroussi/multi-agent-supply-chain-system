@@ -113,80 +113,95 @@ code, pre {
   position: sticky;
   top: 0;
   z-index: 100;
-  background: rgba(255, 255, 255, 0.95);
+  background: rgba(255, 255, 255, 0.96);
   backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--border-subtle);
+  height: 64px;
+  display: flex;
+  align-items: center;
 }
 
 .landing-nav-inner {
   max-width: 1380px;
+  width: 100%;
   margin: 0 auto;
-  padding: 1.25rem 2.5rem;
+  padding: 0 1.75rem;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 2rem;
+  gap: 1.5rem;
 }
 
 .brand-identity {
   display: flex;
   align-items: center;
-  gap: 0.9rem;
+  gap: 0.75rem;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .brand-mark {
-  width: 44px;
-  height: 44px;
-  border-radius: 12px;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
   background: var(--coral-600);
   color: #ffffff;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 6px 16px rgba(255, 54, 33, 0.25);
+  box-shadow: 0 2px 6px rgba(255, 54, 33, 0.25);
 }
 
 .brand-mark.sm {
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
 }
 
 .brand-text {
   display: flex;
   align-items: center;
-  gap: 0.65rem;
+  gap: 0.5rem;
 }
 
 .brand-title {
   font-family: var(--font-display);
   font-weight: 800;
-  font-size: 1.15rem;
-  letter-spacing: -0.02em;
+  font-size: 0.98rem;
+  letter-spacing: -0.015em;
   color: var(--ink-900);
+  white-space: nowrap;
 }
 
 .brand-version {
-  font-size: 0.75rem;
-  font-weight: 700;
-  padding: 0.2rem 0.65rem;
-  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.68rem;
+  font-weight: 600;
+  height: 22px;
+  padding: 0 0.55rem;
+  border-radius: 6px;
   background: var(--coral-50);
   color: var(--coral-600);
   border: 1px solid var(--border-coral);
+  white-space: nowrap;
+  line-height: 1;
 }
 
 .landing-nav-links {
   display: flex;
   align-items: center;
-  gap: 2.5rem;
+  gap: 1.75rem;
+  white-space: nowrap;
 }
 
 .landing-nav-links a {
   text-decoration: none;
   color: var(--ink-600);
-  font-weight: 600;
-  font-size: 0.95rem;
+  font-weight: 500;
+  font-size: 0.88rem;
+  white-space: nowrap;
   transition: color 0.15s ease;
 }
 
@@ -197,26 +212,31 @@ code, pre {
 .landing-nav-cta {
   display: flex;
   align-items: center;
-  gap: 1rem;
+  gap: 0.6rem;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
-/* Enterprise Buttons */
+/* Enterprise Buttons - YouTube / Linear style: Crisp, well-proportioned, fixed height */
 .btn-primary-coral {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 0.65rem;
-  padding: 0.8rem 1.5rem;
-  border-radius: 10px;
-  border: none;
+  gap: 0.45rem;
+  height: 38px;
+  padding: 0 1rem;
+  border-radius: 8px;
+  border: 1px solid transparent;
   background: var(--coral-600);
   color: #ffffff;
   font-family: var(--font-sans);
-  font-weight: 700;
-  font-size: 0.95rem;
+  font-weight: 600;
+  font-size: 0.84rem;
+  white-space: nowrap;
   cursor: pointer;
-  box-shadow: 0 6px 20px rgba(255, 54, 33, 0.22);
-  transition: all 0.2s ease;
+  box-shadow: 0 1px 3px rgba(255, 54, 33, 0.25);
+  transition: background-color 0.15s ease, transform 0.1s ease;
+  line-height: 1;
 }
 
 .btn-primary-coral:hover {
@@ -225,49 +245,62 @@ code, pre {
 }
 
 .btn-primary-coral.btn-lg {
-  padding: 1.05rem 1.85rem;
-  font-size: 1rem;
-  border-radius: 12px;
+  height: 44px;
+  padding: 0 1.25rem;
+  font-size: 0.9rem;
+  border-radius: 8px;
+  box-shadow: 0 2px 6px rgba(255, 54, 33, 0.22);
 }
 
 .btn-secondary-white {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 0.65rem;
-  padding: 1.05rem 1.75rem;
-  border-radius: 12px;
-  border: 1.5px solid var(--border-strong);
-  background: var(--bg-white);
+  gap: 0.45rem;
+  height: 44px;
+  padding: 0 1.25rem;
+  border-radius: 8px;
+  border: 1px solid var(--border-strong);
+  background: #ffffff;
   color: var(--ink-900);
   font-family: var(--font-sans);
-  font-weight: 700;
-  font-size: 1rem;
+  font-weight: 600;
+  font-size: 0.9rem;
+  white-space: nowrap;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+  line-height: 1;
 }
 
 .btn-secondary-white:hover {
-  border-color: var(--ink-900);
+  border-color: var(--ink-700);
   background: var(--bg-page);
 }
 
 .btn-ghost {
   display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.75rem 1.2rem;
-  border-radius: 10px;
+  justify-content: center;
+  gap: 0.45rem;
+  height: 38px;
+  padding: 0 0.85rem;
+  border-radius: 8px;
   border: 1px solid var(--border-subtle);
-  background: var(--bg-white);
-  color: var(--ink-900);
+  background: #ffffff;
+  color: var(--ink-800);
+  font-family: var(--font-sans);
   font-weight: 600;
-  font-size: 0.92rem;
+  font-size: 0.84rem;
+  white-space: nowrap;
   cursor: pointer;
+  transition: all 0.15s ease;
+  line-height: 1;
 }
 
 .btn-ghost:hover {
   background: var(--bg-page);
+  border-color: var(--border-strong);
+  color: var(--ink-900);
 }
 
 /* Hero Section */
