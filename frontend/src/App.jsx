@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 
 import HeroGlobeIllustration from './components/HeroGlobeIllustration';
+import AuthView from './components/AuthView';
 import ConnectionBanner from './components/ConnectionBanner';
 import MetricRibbon from './components/MetricRibbon';
 import PipelineGraph from './components/PipelineGraph';
@@ -24,7 +25,13 @@ import LiveStreamLogs from './components/LiveStreamLogs';
 import ExecutiveDecreeView from './components/ExecutiveDecreeView';
 import CatalogsView from './components/CatalogsView';
 import ArchitectureModal from './components/ArchitectureModal';
-import { checkBackendHealth, fetchSystemCatalogs, streamSimulation } from './api/client';
+import {
+  checkBackendHealth,
+  fetchSystemCatalogs,
+  streamSimulation,
+  getStoredSession,
+  logoutUser
+} from './api/client';
 
 const FALLBACK_CATALOGS = {
   strategic_skus: ['SKU-MED-901', 'SKU-ENG-404', 'SKU-FOOD-101'],
@@ -95,10 +102,37 @@ const FALLBACK_CATALOGS = {
   ]
 };
 
+const resolvePageFromPath = (pathname) => {
+  const clean = (pathname || '/').replace(/\/+$/, '') || '/';
+  if (clean === '/login') return 'login';
+  if (clean === '/signup') return 'signup';
+  if (clean === '/platform') return 'platform';
+  return 'home';
+};
+
 export default function App() {
-  const [activePage, setActivePage] = useState('home'); // 'home' | 'platform'
+  const [activePage, setActivePage] = useState(() =>
+    resolvePageFromPath(window.location.pathname)
+  ); // 'home' | 'login' | 'signup' | 'platform'
+  const [currentUser, setCurrentUser] = useState(() => getStoredSession()?.user || null);
   const [activeTab, setActiveTab] = useState('operations'); // 'operations' | 'decree' | 'catalogs'
   const [isArchModalOpen, setIsArchModalOpen] = useState(false);
+
+  const navigate = useCallback((path) => {
+    if (window.location.pathname !== path) {
+      window.history.pushState({}, '', path);
+    }
+    setActivePage(resolvePageFromPath(path));
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, []);
+
+  useEffect(() => {
+    const onPopState = () => {
+      setActivePage(resolvePageFromPath(window.location.pathname));
+    };
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, []);
 
   const [backendHealth, setBackendHealth] = useState({ ok: false });
   const [isCheckingHealth, setIsCheckingHealth] = useState(false);
@@ -162,7 +196,7 @@ export default function App() {
   };
 
   const runRealisticDemo = async () => {
-    setActivePage('platform');
+    navigate('/platform');
     setActiveTab('operations');
     setIsSimulating(true);
     setActiveNodeId(null);
@@ -336,7 +370,7 @@ export default function App() {
 
   const handleStartSimulation = async () => {
     if (isSimulating) return;
-    setActivePage('platform');
+    navigate('/platform');
     setActiveTab('operations');
 
     const health = await checkBackendHealth();
@@ -408,9 +442,25 @@ export default function App() {
 
   const handleSelectAgentFromHero = (agentId) => {
     setSelectedNodeId(agentId);
-    setActivePage('platform');
+    navigate('/platform');
     setActiveTab('operations');
   };
+
+  /* Standalone Pages: /login and /signup */
+  if (activePage === 'login' || activePage === 'signup') {
+    return (
+      <div className="aura-app-shell">
+        <AuthView
+          mode={activePage}
+          onNavigate={navigate}
+          onSuccess={(user) => {
+            setCurrentUser(user);
+            navigate('/platform');
+          }}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="aura-app-shell">
@@ -421,7 +471,7 @@ export default function App() {
           <button
             type="button"
             className="aura-brand-btn"
-            onClick={() => setActivePage('home')}
+            onClick={() => navigate('/')}
           >
             <svg className="aura-wave-logo" width="38" height="24" viewBox="0 0 42 26" fill="none" aria-hidden="true">
               <path
@@ -453,7 +503,7 @@ export default function App() {
             <button
               type="button"
               className={`aura-nav-link ${activePage === 'home' ? 'is-active' : ''}`}
-              onClick={() => setActivePage('home')}
+              onClick={() => navigate('/')}
             >
               <span>Accueil</span>
             </button>
@@ -462,7 +512,7 @@ export default function App() {
               type="button"
               className={`aura-nav-link ${activePage === 'platform' && activeTab === 'operations' ? 'is-active' : ''}`}
               onClick={() => {
-                setActivePage('platform');
+                navigate('/platform');
                 setActiveTab('operations');
               }}
             >
@@ -474,7 +524,7 @@ export default function App() {
               type="button"
               className={`aura-nav-link ${activePage === 'platform' && activeTab === 'decree' ? 'is-active' : ''}`}
               onClick={() => {
-                setActivePage('platform');
+                navigate('/platform');
                 setActiveTab('decree');
               }}
             >
@@ -486,7 +536,7 @@ export default function App() {
               type="button"
               className={`aura-nav-link ${activePage === 'platform' && activeTab === 'catalogs' ? 'is-active' : ''}`}
               onClick={() => {
-                setActivePage('platform');
+                navigate('/platform');
                 setActiveTab('catalogs');
               }}
             >
@@ -505,13 +555,37 @@ export default function App() {
 
           {/* Right: Action Pills */}
           <div className="aura-nav-actions">
-            <button
-              type="button"
-              className="aura-btn-outline"
-              onClick={() => setActivePage('platform')}
-            >
-              Se connecter
-            </button>
+            {currentUser ? (
+              <div className="aura-user-pill-group">
+                <button
+                  type="button"
+                  className="aura-btn-outline"
+                  onClick={() => navigate('/platform')}
+                  title={`Connecté en tant que ${currentUser.email}`}
+                >
+                  <span>{currentUser.name}</span>
+                </button>
+                <button
+                  type="button"
+                  className="aura-logout-link"
+                  onClick={async () => {
+                    await logoutUser();
+                    setCurrentUser(null);
+                    navigate('/');
+                  }}
+                >
+                  Déconnexion
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                className="aura-btn-outline"
+                onClick={() => navigate('/login')}
+              >
+                Se connecter
+              </button>
+            )}
             <button
               type="button"
               className="aura-btn-solid"

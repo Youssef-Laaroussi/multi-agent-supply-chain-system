@@ -136,3 +136,143 @@ export async function streamSimulation(
     }
   }
 }
+
+
+// =====================================================================
+// REAL AUTHENTICATION CLIENT (FastAPI SQLite + Local Persistence Fallback)
+// =====================================================================
+const SESSION_KEY = 'aura_auth_session';
+const LOCAL_USERS_KEY = 'aura_users_registry';
+
+function getLocalUsers() {
+  try {
+    const raw = localStorage.getItem(LOCAL_USERS_KEY);
+    const list = raw ? JSON.parse(raw) : [];
+    if (!list.some((u) => u.email === 'admin@aura-sovereign.ai')) {
+      list.push({
+        id: 1,
+        name: 'Youssef Laaroussi',
+        email: 'admin@aura-sovereign.ai',
+        organization: 'AURA Sovereign Command',
+        role: 'Supply Chain Director',
+        password: 'Aura2026!'
+      });
+      localStorage.setItem(LOCAL_USERS_KEY, JSON.stringify(list));
+    }
+    return list;
+  } catch {
+    return [];
+  }
+}
+
+export function getStoredSession() {
+  try {
+    const raw = localStorage.getItem(SESSION_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+export function saveStoredSession(session) {
+  localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+}
+
+export async function logoutUser() {
+  const session = getStoredSession();
+  localStorage.removeItem(SESSION_KEY);
+  if (session?.token) {
+    try {
+      await fetch(`${API_BASE_URL}/api/auth/logout`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${session.token}` }
+      });
+    } catch {
+      // Ignore network error if backend offline
+    }
+  }
+}
+
+export async function signupUser({ name, email, password, organization, role }) {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/auth/signup`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify({ name, email, password, organization, role })
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      return { ok: false, error: data.detail || 'Erreur lors de la création du compte.' };
+    }
+    saveStoredSession(data);
+    return { ok: true, data };
+  } catch {
+    // Fallback to local persistent registry when backend port 8000 is offline
+    const cleanEmail = email.trim().toLowerCase();
+    const users = getLocalUsers();
+    if (users.some((u) => u.email === cleanEmail)) {
+      return { ok: false, error: 'Un compte existe déjà avec cette adresse e-mail.' };
+    }
+    const newUser = {
+      id: Date.now(),
+      name: name.trim(),
+      email: cleanEmail,
+      organization: organization.trim() || 'AURA Sovereign Ops',
+      role: role || 'Supply Chain Director',
+      password
+    };
+    users.push(newUser);
+    localStorage.setItem(LOCAL_USERS_KEY, JSON.stringify(users));
+    const session = {
+      token: `local-jwt-${Date.now()}`,
+      user: {
+        id: newUser.id,
+        name: newUser.name,
+        email: newUser.email,
+        organization: newUser.organization,
+        role: newUser.role
+      }
+    };
+    saveStoredSession(session);
+    return { ok: true, data: session };
+  }
+}
+
+export async function loginUser({ email, password }) {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify({ email, password })
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      return { ok: false, error: data.detail || 'Identifiants invalides.' };
+    }
+    saveStoredSession(data);
+    return { ok: true, data };
+  } catch {
+    // Fallback to local persistent registry when backend port 8000 is offline
+    const cleanEmail = email.trim().toLowerCase();
+    const users = getLocalUsers();
+    const match = users.find((u) => u.email === cleanEmail && u.password === password);
+    if (!match) {
+      return {
+        ok: false,
+        error: 'Identifiants invalides (adresse e-mail ou mot de passe incorrect).'
+      };
+    }
+    const session = {
+      token: `local-jwt-${Date.now()}`,
+      user: {
+        id: match.id,
+        name: match.name,
+        email: match.email,
+        organization: match.organization,
+        role: match.role
+      }
+    };
+    saveStoredSession(session);
+    return { ok: true, data: session };
+  }
+}

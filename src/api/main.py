@@ -1,7 +1,13 @@
+import os
 import json
+import sqlite3
+import hashlib
+import secrets
+import hmac
 import asyncio
 from datetime import datetime
-from fastapi import FastAPI
+from typing import Optional
+from fastapi import FastAPI, HTTPException, Header
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from langchain_core.messages import HumanMessage
@@ -19,6 +25,192 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# =====================================================================
+# REAL SQLITE AUTHENTICATION & SESSION STORE
+# =====================================================================
+AUTH_DB_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "reports", "aura_users.db")
+
+
+def _get_db() -> sqlite3.Connection:
+    os.makedirs(os.path.dirname(AUTH_DB_PATH), exist_ok=True)
+    conn = sqlite3.connect(AUTH_DB_PATH)
+    conn.row_factory = sqlite3.Row
+    return conn
+
+
+def _hash_password(password: str, salt: str) -> str:
+    return hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt.encode("utf-8"), 120_000).hex()
+
+
+def _init_auth_db() -> None:
+    with _get_db() as conn:
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                email TEXT NOT NULL UNIQUE,
+                organization TEXT NOT NULL,
+                role TEXT NOT NULL,
+                password_hash TEXT NOT NULL,
+                salt TEXT NOT NULL,
+                created_at TEXT NOT NULL
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS sessions (
+                token TEXT PRIMARY KEY,
+                user_id INTEGER NOT NULL,
+                created_at TEXT NOT NULL,
+                FOREIGN KEY(user_id) REFERENCES users(id)
+            )
+            """
+        )
+        # Seed default operator account if not present
+        cur = conn.execute("SELECT id FROM users WHERE email = ?", ("admin@aura-sovereign.ai",))
+        if not cur.fetchone():
+            salt = secrets.token_hex(16)
+            pwd_hash = _hash_password("Aura2026!", salt)
+            conn.execute(
+                """
+                INSERT INTO users (name, email, organization, role, password_hash, salt, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    "Youssef Laaroussi",
+                    "admin@aura-sovereign.ai",
+                    "AURA Sovereign Command",
+                    "Supply Chain Director",
+                    pwd_hash,
+                    salt,
+                    datetime.now().isoformat(),
+                ),
+            )
+        conn.commit()
+
+
+_init_auth_db()
+
+
+class SignupRequest(BaseModel):
+    name: str
+    email: str
+    password: str
+    organization: str = "AURA Sovereign Ops"
+    role: str = "Supply Chain Director"
+
+
+class LoginRequest(BaseModel):
+    email: str
+    password: str
+
+
+@app.post("/api/auth/signup")
+async def auth_signup(req: SignupRequest):
+    email = req.email.strip().lower()
+    name = req.name.strip()
+    if not email or "@" not in email:
+        raise HTTPException(status_code=400, detail="Veuillez saisir une adresse e-mail valide.")
+    if not name:
+        raise HTTPException(status_code=400, detail="Veuillez indiquer votre nom complet.")
+    if len(req.password) < 6:
+        raise HTTPException(status_code=400, detail="Le mot de passe doit contenir au moins 6 caractères.")
+
+    salt = secrets.token_hex(16)
+    pwd_hash = _hash_password(req.password, salt)
+    now = datetime.now().isoformat()
+
+    with _get_db() as conn:
+        existing = conn.execute("SELECT id FROM users WHERE email = ?", (email,)).fetchone()
+        if existing:
+            raise HTTPException(status_code=409, detail="Un compte existe déjà avec cette adresse e-mail.")
+
+        cur = conn.execute(
+            """
+            INSERT INTO users (name, email, organization, role, password_hash, salt, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (name, email, req.organization.strip() or "AURA Sovereign Ops", req.role, pwd_hash, salt, now),
+        )
+        user_id = cur.lastrowid
+        token = secrets.token_urlsafe(32)
+        conn.execute("INSERT INTO sessions (token, user_id, created_at) VALUES (?, ?, ?)", (token, user_id, now))
+        conn.commit()
+
+    return {
+        "token": token,
+        "user": {
+            "id": user_id,
+            "name": name,
+            "email": email,
+            "organization": req.organization.strip() or "AURA Sovereign Ops",
+            "role": req.role,
+        },
+    }
+
+
+@app.post("/api/auth/login")
+async def auth_login(req: LoginRequest):
+    email = req.email.strip().lower()
+    with _get_db() as conn:
+        row = conn.execute("SELECT * FROM users WHERE email = ?", (email,)).fetchone()
+        if not row:
+            raise HTTPException(status_code=401, detail="Identifiants invalides (adresse e-mail ou mot de passe incorrect).")
+
+        expected_hash = _hash_password(req.password, row["salt"])
+        if not hmac.compare_digest(expected_hash, row["password_hash"]):
+            raise HTTPException(status_code=401, detail="Identifiants invalides (adresse e-mail ou mot de passe incorrect).")
+
+        token = secrets.token_urlsafe(32)
+        conn.execute(
+            "INSERT INTO sessions (token, user_id, created_at) VALUES (?, ?, ?)",
+            (token, row["id"], datetime.now().isoformat()),
+        )
+        conn.commit()
+
+    return {
+        "token": token,
+        "user": {
+            "id": row["id"],
+            "name": row["name"],
+            "email": row["email"],
+            "organization": row["organization"],
+            "role": row["role"],
+        },
+    }
+
+
+@app.get("/api/auth/me")
+async def auth_me(authorization: Optional[str] = Header(default=None)):
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Session non authentifiée.")
+    token = authorization.split(" ", 1)[1].strip()
+    with _get_db() as conn:
+        row = conn.execute(
+            """
+            SELECT u.id, u.name, u.email, u.organization, u.role
+            FROM sessions s
+            JOIN users u ON u.id = s.user_id
+            WHERE s.token = ?
+            """,
+            (token,),
+        ).fetchone()
+        if not row:
+            raise HTTPException(status_code=401, detail="Session expirée ou invalide.")
+        return {"user": dict(row)}
+
+
+@app.post("/api/auth/logout")
+async def auth_logout(authorization: Optional[str] = Header(default=None)):
+    if authorization and authorization.startswith("Bearer "):
+        token = authorization.split(" ", 1)[1].strip()
+        with _get_db() as conn:
+            conn.execute("DELETE FROM sessions WHERE token = ?", (token,))
+            conn.commit()
+    return {"status": "logged_out"}
 
 
 @app.get("/api/health")
